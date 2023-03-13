@@ -110,13 +110,16 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    ; -- IF")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    test rax, rax")?;
-                writeln!(writer, "    jz addr_{}", token.value)?;
+                writeln!(writer, "    jz addr_{}", token.value + 1)?;
                 ti += 1;
             },
             OpType::Else => {
+                writeln!(writer, "    ; -- ELSE")?;
+                writeln!(writer, "    jmp addr_{}", token.value)?;
                 ti += 1;
             },
             OpType::End => {
+                writeln!(writer, "    ; -- END")?;
                 ti += 1;
             },
         }

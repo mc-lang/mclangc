@@ -1,3 +1,5 @@
-35 34 + 692 = if
-    21 print
+1 1 = if
+    1111 print
+else
+    2222 print
 end

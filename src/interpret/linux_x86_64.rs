@@ -51,12 +51,13 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
             OpType::If => {
                 let a = stack_pop(&mut stack)?;
                 if a == 0 {
-                    ti = token.value as usize;
+                    ti = (token.value + 1) as usize;
+                } else {
+                    ti += 1;
                 }
-                ti += 1;
             },
             OpType::Else => {
-                ti += 1;
+                ti = token.value as usize;
 
             },
             OpType::End => ti += 1

@@ -11,6 +11,18 @@ pub fn cross_ref(mut tokens: Vec<Operator>) -> Vec<Operator> {
             }
 
             OpType::End => {
+                let block_ip = stack.pop().unwrap();
+                let mut block_og = &mut tokens[block_ip as usize];
+                if vec![OpType::If, OpType::Else].contains(&(*block_og).typ)  {
+                    (*block_og).value = ip as i32;
+                    tokens[block_ip as usize] = block_og.clone();
+                } else {
+                    util::logger::pos_error(op.clone().pos,"'end' can only close 'if' blocks");
+                    std::process::exit(1); // idc
+                }
+
+            }
+            OpType::Else => {
                 let if_ip = stack.pop().unwrap();
                 let mut if_og = &mut tokens[if_ip as usize];
                 if !vec![OpType::If].contains(&(*if_og).typ)  {
@@ -19,7 +31,7 @@ pub fn cross_ref(mut tokens: Vec<Operator>) -> Vec<Operator> {
                 }
 
                 (*if_og).value = ip as i32;
-
+                stack.push(ip as u32);
             }
             _ => ()
         }
