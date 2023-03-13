@@ -2,6 +2,8 @@
 use crate::constants::Token;
 use color_eyre::Result;
 
+
+
 pub fn find_col<F>(text: String, mut col: u32, predicate: F) -> Result<u32> where F: Fn(char) -> bool {
     while (col as usize) < text.len() && !predicate(text.chars().nth(col as usize).unwrap()) {
         col += 1;

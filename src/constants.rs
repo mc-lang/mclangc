@@ -1,12 +1,15 @@
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OpType {
     Push,
     Pop,
     Minus,
     Plus,
     Equals,
-    Print
+    Print,
+    If,
+    Else,
+    End,
 }
 
 
@@ -15,17 +18,19 @@ pub enum OpType {
 
 // }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Operator {
     pub typ: OpType,
     pub value: i32,
+    pub pos: (String, u32, u32)
 }
 
 impl Operator {
-    pub fn new(typ: OpType, value: i32) -> Self {
+    pub fn new(typ: OpType, value: i32, file: String, row: u32, col: u32) -> Self {
         Self {
             typ,
-            value
+            value,
+            pos: (file, row, col)
         }
     }
 }

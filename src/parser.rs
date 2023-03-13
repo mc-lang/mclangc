@@ -1,6 +1,32 @@
 use crate::{constants::{Operator, OpType, Token}, util};
 use color_eyre::Result;
 
+pub fn cross_ref(mut tokens: Vec<Operator>) -> Vec<Operator> {
+    let mut stack: Vec<u32> = Vec::new();
+    for ip in 0..tokens.len() {
+        let op = &tokens.clone()[ip];
+        match op.typ {
+            OpType::If => {
+                stack.push(ip as u32)
+            }
+
+            OpType::End => {
+                let if_ip = stack.pop().unwrap();
+                let mut if_og = &mut tokens[if_ip as usize];
+                if !vec![OpType::If].contains(&(*if_og).typ)  {
+                    util::logger::pos_error(op.clone().pos,"'end' can only close 'if' blocks");
+                    std::process::exit(1); // idc
+                }
+
+                (*if_og).value = ip as i32;
+
+            }
+            _ => ()
+        }
+
+    }
+    tokens.clone()
+}
 
 pub struct Parser {
     tokens: Vec<Token>
@@ -21,14 +47,17 @@ impl Parser {
             match token.text.as_str() {
                 t if t.parse::<i32>().is_ok() => {
                     let num = t.parse::<i32>().unwrap();
-                    tokens.push(Operator::new(OpType::Push, num));
+                    tokens.push(Operator::new(OpType::Push, num, token.file.clone(), token.line, token.col));
                 },
                 
-                "pop" => tokens.push(Operator::new(OpType::Pop, 0)),
-                "+" => tokens.push(Operator::new(OpType::Plus, 0)),
-                "-" => tokens.push(Operator::new(OpType::Minus, 0)),
-                "print" => tokens.push(Operator::new(OpType::Print, 0)),
-                "=" => tokens.push(Operator::new(OpType::Equals, 0)),
+                "pop" => tokens.push(Operator::new(OpType::Pop, 0, token.file.clone(), token.line, token.col)),
+                "+" => tokens.push(Operator::new(OpType::Plus, 0, token.file.clone(), token.line, token.col)),
+                "-" => tokens.push(Operator::new(OpType::Minus, 0, token.file.clone(), token.line, token.col)),
+                "print" => tokens.push(Operator::new(OpType::Print, 0, token.file.clone(), token.line, token.col)),
+                "=" => tokens.push(Operator::new(OpType::Equals, 0, token.file.clone(), token.line, token.col)),
+                "if" => tokens.push(Operator::new(OpType::If, 0, token.file.clone(), token.line, token.col)),
+                "else" => tokens.push(Operator::new(OpType::Else, 0, token.file.clone(), token.line, token.col)),
+                "end" => tokens.push(Operator::new(OpType::End, 0, token.file.clone(), token.line, token.col)),
 
 
                 t => {
@@ -38,6 +67,6 @@ impl Parser {
             }
         }
 
-        Ok(tokens)
+        Ok(cross_ref(tokens))
     }
 }

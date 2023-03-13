@@ -55,17 +55,22 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
 
     writeln!(writer, "_start:")?;
     
-    
-    for token in tokens {
+    let mut ti = 0;
+    while ti < tokens.len() {
+        let token = &tokens[ti];
+        writeln!(writer, "addr_{}:", ti)?;
         match token.typ {
             OpType::Push => {
                 writeln!(writer, "    ; -- PUSH {}", token.value)?;
                 writeln!(writer, "    mov rax, {}", token.value)?;
                 writeln!(writer, "    push rax")?;
+                ti += 1;
+                
             },
             OpType::Pop => {
                 writeln!(writer, "    ; -- POP")?;
                 writeln!(writer, "    pop")?;
+                ti += 1;
             },
             OpType::Plus => {
                 writeln!(writer, "    ; -- PLUS")?;
@@ -73,6 +78,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    add rax, rbx")?;
                 writeln!(writer, "    push rax")?;
+                ti += 1;
             },
             OpType::Minus => {
                 writeln!(writer, "    ; -- MINUS")?;
@@ -80,6 +86,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    sub rbx, rax")?;
                 writeln!(writer, "    push rbx")?;
+                ti += 1;
             },
             OpType::Equals => {
                 writeln!(writer, "    ; -- EQUALS")?;
@@ -90,12 +97,27 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    cmp rax, rbx")?;
                 writeln!(writer, "    cmove rcx, rdx")?;
                 writeln!(writer, "    push rcx")?;
+                ti += 1;
 
             },
             OpType::Print => {
                 writeln!(writer, "    ; -- PRINT")?;
                 writeln!(writer, "    pop rdi")?;
                 writeln!(writer, "    call print")?;
+                ti += 1;
+            },
+            OpType::If => {
+                writeln!(writer, "    ; -- IF")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    test rax, rax")?;
+                writeln!(writer, "    jz addr_{}", token.value)?;
+                ti += 1;
+            },
+            OpType::Else => {
+                ti += 1;
+            },
+            OpType::End => {
+                ti += 1;
             },
         }
     }
