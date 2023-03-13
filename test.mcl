@@ -1,6 +1,5 @@
-1
-dup print
-dup print
-dup print
-dup print
-dup print
+1 2 < if
+    1 print
+else 
+    0 print
+end

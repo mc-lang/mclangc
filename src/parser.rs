@@ -55,6 +55,9 @@ impl Parser {
         let mut tokens = Vec::new();
 
         for token in &self.tokens {
+            if token.text.is_empty() {
+                continue;
+            }
             let pos = (token.file.clone(), token.line, token.col);
             match token.text.as_str() {
                 t if t.parse::<i32>().is_ok() => {
@@ -71,6 +74,8 @@ impl Parser {
                 "else" => tokens.push(Operator::new(OpType::Else, 0, token.file.clone(), token.line, token.col)),
                 "end" => tokens.push(Operator::new(OpType::End, 0, token.file.clone(), token.line, token.col)),
                 "dup" => tokens.push(Operator::new(OpType::Dup, 0, token.file.clone(), token.line, token.col)),
+                ">" => tokens.push(Operator::new(OpType::Gt, 0, token.file.clone(), token.line, token.col)),
+                "<" => tokens.push(Operator::new(OpType::Lt, 0, token.file.clone(), token.line, token.col)),
 
 
                 t => {

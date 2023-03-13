@@ -11,6 +11,8 @@ pub enum OpType {
     Else,
     End,
     Dup,
+    Gt,
+    Lt
 }
 
 

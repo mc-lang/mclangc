@@ -100,6 +100,30 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
 
             },
+            OpType::Lt => {
+                writeln!(writer, "    ; -- EQUALS")?;
+                writeln!(writer, "    mov rcx, 0")?;
+                writeln!(writer, "    mov rdx, 1")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    cmp rax, rbx")?;
+                writeln!(writer, "    cmovl rcx, rdx")?;
+                writeln!(writer, "    push rcx")?;
+                ti += 1;
+
+            },
+            OpType::Gt => {
+                writeln!(writer, "    ; -- EQUALS")?;
+                writeln!(writer, "    mov rcx, 0")?;
+                writeln!(writer, "    mov rdx, 1")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    cmp rax, rbx")?;
+                writeln!(writer, "    cmovg rcx, rdx")?;
+                writeln!(writer, "    push rcx")?;
+                ti += 1;
+
+            },
             OpType::Print => {
                 writeln!(writer, "    ; -- PRINT")?;
                 writeln!(writer, "    pop rdi")?;
