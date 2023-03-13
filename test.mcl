@@ -1,4 +1,4 @@
-1 2 < if
+2 1 < if
     1 print
 else 
     0 print

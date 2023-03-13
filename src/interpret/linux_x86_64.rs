@@ -42,14 +42,14 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 ti += 1;
             },
             OpType::Gt => {
-                let a = stack_pop(&mut stack)?;
                 let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack)?;
                 stack.push((a > b) as i32);
                 ti += 1;
             },
             OpType::Lt => {
-                let a = stack_pop(&mut stack)?;
                 let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack)?;
                 stack.push((a < b) as i32);
                 ti += 1;
             },
