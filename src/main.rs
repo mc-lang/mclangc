@@ -30,7 +30,7 @@ pub struct Args {
     interpret: bool
 }
 
-fn main() -> Result<(), &'static str> {
+fn main() -> Result<(), ()> {
     let args = Args::parse();
 
     println!("MClang2 0.0.1");
@@ -44,15 +44,16 @@ fn main() -> Result<(), &'static str> {
     // }
 
     let mut parser = parser::Parser::new(tokens);
-    let tokens = parser.parse()?;
+    let tokens = match parser.parse(){
+        Ok(t) => t,
+        Err(_) => return Ok(())
+    };
     if args.compile && args.interpret {
         util::logger::error("Cannot compile and interpret at the same time");
     } else if args.interpret {
-        interpret::linux_x86_64::run(tokens)?;
+        let _ = interpret::linux_x86_64::run(tokens);
     } else if args.compile {
-        if let Err(e) = compile::linux_x86_64::compile(tokens, args) {
-            println!("{}", e);
-        }
+        let _ = compile::linux_x86_64::compile(tokens, args);
     } else {
         util::logger::error("Did not choose to compile or to interpret, exiting");
     }

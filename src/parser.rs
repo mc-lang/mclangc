@@ -13,7 +13,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Operator>, &'static str> {
+    pub fn parse(&mut self) -> Result<Vec<Operator>, ()> {
         let mut tokens = Vec::new();
 
         for token in &self.tokens {
@@ -32,7 +32,7 @@ impl Parser {
 
                 t => {
                     util::logger::pos_error(pos, format!("Unknown token '{}'", t).as_str());
-                    return Err("");
+                    return Err(());
                 }
             }
         }
