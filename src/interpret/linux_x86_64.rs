@@ -1,9 +1,8 @@
 use crate::constants::OpType;
-use crate::interpret::logger;
-use std::io::{self, Write};
+// use crate::util::logger;
 use color_eyre::Result;
 
-fn stack_pop(mut stack: &mut Vec<i32>) -> Result<i32, &'static str> {
+fn stack_pop(stack: &mut Vec<i32>) -> Result<i32, &'static str> {
     match stack.pop() {
         Some(i) => Ok(i),
         None => Err("Stack underflow"),

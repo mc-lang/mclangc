@@ -1,27 +1,24 @@
-use crate::{constants::{Operator, OpType}, util};
-use color_eyre::{Result, Report};
+use crate::{constants::{Operator, OpType, Token}, util};
+use color_eyre::Result;
 
 
 pub struct Parser {
-    file: String
+    tokens: Vec<Token>
 }
 
 impl Parser {
-    pub fn new(file: String) -> Self {
+    pub fn new(file: Vec<Token>) -> Self {
         Self{
-            file
+            tokens: file
         }
     }
 
     pub fn parse(&mut self) -> Result<Vec<Operator>, &'static str> {
         let mut tokens = Vec::new();
 
-        for tok in self.file.split([' ', '\n', '\t', '\r']) {
-            if tok == "" {
-                continue;
-            }
-
-            match tok {
+        for token in &self.tokens {
+            let pos = (token.file.clone(), token.line, token.col);
+            match token.text.as_str() {
                 t if t.parse::<i32>().is_ok() => {
                     let num = t.parse::<i32>().unwrap();
                     tokens.push(Operator::new(OpType::Push, num));
@@ -34,13 +31,12 @@ impl Parser {
 
 
                 t => {
-                    util::logger::error("Unknown token '{t}'");
+                    util::logger::pos_error(pos, format!("Unknown token '{}'", t).as_str());
                     return Err("");
                 }
             }
         }
 
-        dbg!(&tokens);
         Ok(tokens)
     }
 }

@@ -30,11 +30,6 @@ pub struct Args {
     interpret: bool
 }
 
-
-use constants::{
-    OpType,
-    Operator
-};
 fn main() -> Result<(), &'static str> {
     let args = Args::parse();
 
@@ -42,10 +37,13 @@ fn main() -> Result<(), &'static str> {
     
     
     let code = fs::read_to_string(&args.in_file).unwrap();
-    let tokens = lexer::lex(code);
-    dbg!(tokens);
-    return Ok(());
-    let mut parser = parser::Parser::new(code.clone());
+    let tokens = lexer::lex(code, &args.in_file).unwrap();
+
+    // for token in &tokens {
+    //     println!("(f: {}, l: {}, c: {}, t: {})", token.file, token.line, token.col, token.text);
+    // }
+
+    let mut parser = parser::Parser::new(tokens);
     let tokens = parser.parse()?;
     if args.compile && args.interpret {
         util::logger::error("Cannot compile and interpret at the same time");

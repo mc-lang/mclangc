@@ -24,9 +24,10 @@ impl Operator {
 }
 
 
+#[derive(Debug)]
 pub struct Token {
-    file: String,
-    line: u32,
-    col: u32,
-    text: String
+    pub file: String,
+    pub line: u32,
+    pub col: u32,
+    pub text: String
 }

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use color_eyre::Result;
-use crate::compile::logger;
+use crate::util::logger;
 
 pub fn linux_x86_64_compile_and_link(of_a: PathBuf, of_o: PathBuf, of_c: PathBuf) -> Result<()> {
     
