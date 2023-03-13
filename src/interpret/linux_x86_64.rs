@@ -48,6 +48,12 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 // let _ = io::stdout().flush();
                 ti += 1;
             },
+
+            OpType::Dup => {
+                let a = stack_pop(&mut stack)?;
+                stack.push(a);
+                stack.push(a);
+            },
             OpType::If => {
                 let a = stack_pop(&mut stack)?;
                 if a == 0 {

@@ -70,6 +70,7 @@ impl Parser {
                 "if" => tokens.push(Operator::new(OpType::If, 0, token.file.clone(), token.line, token.col)),
                 "else" => tokens.push(Operator::new(OpType::Else, 0, token.file.clone(), token.line, token.col)),
                 "end" => tokens.push(Operator::new(OpType::End, 0, token.file.clone(), token.line, token.col)),
+                "dup" => tokens.push(Operator::new(OpType::Dup, 0, token.file.clone(), token.line, token.col)),
 
 
                 t => {

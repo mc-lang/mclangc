@@ -106,6 +106,16 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    call print")?;
                 ti += 1;
             },
+
+            OpType::Dup => {
+                writeln!(writer, "    ; -- DUP")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    push rax")?;
+                writeln!(writer, "    push rax")?;
+                
+                ti += 1;
+            },
+
             OpType::If => {
                 writeln!(writer, "    ; -- IF")?;
                 writeln!(writer, "    pop rax")?;

@@ -10,6 +10,7 @@ pub enum OpType {
     If,
     Else,
     End,
+    Dup,
 }
 
 
