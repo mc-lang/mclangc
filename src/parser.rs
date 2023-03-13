@@ -23,11 +23,12 @@ impl Parser {
                     let num = t.parse::<i32>().unwrap();
                     tokens.push(Operator::new(OpType::Push, num));
                 },
-
+                
                 "pop" => tokens.push(Operator::new(OpType::Pop, 0)),
                 "+" => tokens.push(Operator::new(OpType::Plus, 0)),
                 "-" => tokens.push(Operator::new(OpType::Minus, 0)),
                 "print" => tokens.push(Operator::new(OpType::Print, 0)),
+                "=" => tokens.push(Operator::new(OpType::Equals, 0)),
 
 
                 t => {

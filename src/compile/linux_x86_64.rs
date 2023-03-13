@@ -81,6 +81,17 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    sub rbx, rax")?;
                 writeln!(writer, "    push rbx")?;
             },
+            OpType::Equals => {
+                writeln!(writer, "    ; -- EQUALS")?;
+                writeln!(writer, "    mov rcx, 0")?;
+                writeln!(writer, "    mov rdx, 1")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    cmp rax, rbx")?;
+                writeln!(writer, "    cmove rcx, rdx")?;
+                writeln!(writer, "    push rcx")?;
+
+            },
             OpType::Print => {
                 writeln!(writer, "    ; -- PRINT")?;
                 writeln!(writer, "    pop rdi")?;

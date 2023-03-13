@@ -5,8 +5,15 @@ pub enum OpType {
     Pop,
     Minus,
     Plus,
+    Equals,
     Print
 }
+
+
+// #[derive(Debug)]
+// pub enum OpType {
+
+// }
 
 #[derive(Debug)]
 pub struct Operator {

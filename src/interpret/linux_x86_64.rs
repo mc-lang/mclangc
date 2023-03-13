@@ -30,6 +30,13 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 let b = stack_pop(&mut stack)?;
                 stack.push(b - a);
             },
+            OpType::Equals => {
+                let a = stack_pop(&mut stack)?;
+                let b = stack_pop(&mut stack)?;
+                stack.push((a == b) as i32);
+
+            },
+
             OpType::Print => {
                 let a = stack_pop(&mut stack)?;
                 println!("{a}");
