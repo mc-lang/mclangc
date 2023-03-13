@@ -58,6 +58,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
     let mut ti = 0;
     while ti < tokens.len() {
         let token = &tokens[ti];
+        
         writeln!(writer, "addr_{}:", ti)?;
         match token.typ {
             OpType::Push => {
@@ -152,13 +153,25 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    jmp addr_{}", token.value)?;
                 ti += 1;
             },
+            OpType::While => {
+                writeln!(writer, "    ; -- WHILE")?;
+                ti += 1;
+            }
+            OpType::Do => {
+                writeln!(writer, "    ; -- DO")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    test rax, rax")?;
+                writeln!(writer, "    jz addr_{}", token.value)?;
+                ti += 1;
+            }
             OpType::End => {
                 writeln!(writer, "    ; -- END")?;
+                writeln!(writer, "    jmp addr_{}", token.value)?;
                 ti += 1;
             },
         }
     }
-
+    writeln!(writer, "addr_{}:", ti)?;
     writeln!(writer, "    mov rax, 60")?;
     writeln!(writer, "    mov rdi, 0")?;
     writeln!(writer, "    syscall")?;

@@ -14,6 +14,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
     let mut ti = 0;
     while ti < tokens.len() {
         let token = &tokens[ti];
+        
         match token.typ {
             OpType::Push => {
                 stack.push(token.value);
@@ -65,6 +66,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 let a = stack_pop(&mut stack)?;
                 stack.push(a);
                 stack.push(a);
+                ti += 1;
             },
             OpType::If => {
                 let a = stack_pop(&mut stack)?;
@@ -78,7 +80,21 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 ti = token.value as usize;
 
             },
-            OpType::End => ti += 1
+
+            OpType::While => {
+                ti += 1;
+            }
+            OpType::Do => {
+                let a = stack.pop().unwrap();
+                if a == 0 {
+                    ti = token.value as usize;
+                } else {
+                    ti += 1;
+                }
+            }            
+            OpType::End => {
+                ti = token.value as usize;
+            }
         }
     }
     Ok(())

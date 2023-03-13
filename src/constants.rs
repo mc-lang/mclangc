@@ -12,7 +12,9 @@ pub enum OpType {
     End,
     Dup,
     Gt,
-    Lt
+    Lt,
+    While,
+    Do
 }
 
 
