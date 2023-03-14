@@ -96,6 +96,22 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    push mem")?;
                 ti += 1;
             }
+            OpType::Load8 => {
+                writeln!(writer, "    ; -- LOAD64")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    xor rbx, rbx")?;
+                writeln!(writer, "    mov bl, [rax]")?;
+                writeln!(writer, "    push rbx")?;
+                ti += 1;
+            }
+
+            OpType::Store8 => {
+                writeln!(writer, "    ; -- STORE64")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    mov [rax], bl")?;
+                ti += 1;
+            }
 
             // math
             OpType::Plus => {

@@ -1,1 +1,3 @@
-mem print
+mem 255 @8
+
+mem !8 print

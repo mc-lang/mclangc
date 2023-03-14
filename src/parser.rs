@@ -82,8 +82,8 @@ impl Parser {
             }
             let pos = (token.file.clone(), token.line, token.col);
             match token.text.as_str() {
-                t if t.parse::<i32>().is_ok() => {
-                    let num = t.parse::<i32>().unwrap();
+                t if t.parse::<u64>().is_ok() => { // negative numbers not yet implemented
+                    let num = t.parse::<i64>().unwrap();
                     tokens.push(Operator::new(OpType::Push, num, token.file.clone(), token.line, token.col));
                 },
                 
@@ -106,7 +106,12 @@ impl Parser {
                 "end" =>   tokens.push(Operator::new(OpType::End, 0, token.file.clone(), token.line, token.col)),
                 "while" => tokens.push(Operator::new(OpType::While, 0, token.file.clone(), token.line, token.col)),
                 "do" =>    tokens.push(Operator::new(OpType::Do, 0, token.file.clone(), token.line, token.col)),
+
+                // mem
                 "mem" =>    tokens.push(Operator::new(OpType::Mem, 0, token.file.clone(), token.line, token.col)),
+                "!8" =>    tokens.push(Operator::new(OpType::Load8, 0, token.file.clone(), token.line, token.col)),
+                "@8" =>    tokens.push(Operator::new(OpType::Store8, 0, token.file.clone(), token.line, token.col)),
+
                 
 
 

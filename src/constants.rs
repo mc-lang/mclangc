@@ -15,7 +15,9 @@ pub enum OpType {
     Lt,
     While,
     Do,
-    Mem
+    Mem,
+    Load8,
+    Store8
 }
 
 
@@ -27,13 +29,13 @@ pub enum OpType {
 #[derive(Debug, Clone)]
 pub struct Operator {
     pub typ: OpType,
-    pub value: i32,
+    pub value: i64,
     pub jmp: i32,
     pub pos: (String, u32, u32)
 }
 
 impl Operator {
-    pub fn new(typ: OpType, value: i32, file: String, row: u32, col: u32) -> Self {
+    pub fn new(typ: OpType, value: i64, file: String, row: u32, col: u32) -> Self {
         Self {
             typ,
             value,

@@ -2,7 +2,7 @@ use crate::constants::OpType;
 // use crate::util::logger;
 use color_eyre::Result;
 
-fn stack_pop(stack: &mut Vec<i32>) -> Result<i32, &'static str> {
+fn stack_pop(stack: &mut Vec<u64>) -> Result<u64, &'static str> {
     match stack.pop() {
         Some(i) => Ok(i),
         None => Err("Stack underflow"),
@@ -10,16 +10,16 @@ fn stack_pop(stack: &mut Vec<i32>) -> Result<i32, &'static str> {
 }
 
 pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
-    let mut stack: Vec<i32> = Vec::new();
+    let mut stack: Vec<u64> = Vec::new();
     let mut ti = 0;
-    let mut mem: [u8; 16*1024];
+    let mut mem: Vec<u64> = Vec::with_capacity(crate::compile::MEM_SZ as usize);
     while ti < tokens.len() {
         let token = &tokens[ti];
         
         match token.typ {
             // stack 
             OpType::Push => {
-                stack.push(token.value);
+                stack.push(token.value as u64);
                 ti += 1;
             },
             OpType::Pop => {
@@ -45,6 +45,19 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 stack.push(0);
                 ti += 1;
             }
+            OpType::Load8 => {
+                let a = stack_pop(&mut stack)?;
+
+                stack.push(mem[a as usize]);
+                ti += 1;
+            }
+            OpType::Store8 => {
+                let a = stack_pop(&mut stack)?;
+                let b = stack_pop(&mut stack)?;
+
+                mem[b as usize] = a;
+                ti += 1;
+            }
 
             // math
             OpType::Plus => {
@@ -62,19 +75,19 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
             OpType::Equals => {
                 let a = stack_pop(&mut stack)?;
                 let b = stack_pop(&mut stack)?;
-                stack.push((a == b) as i32);
+                stack.push((a == b) as u64);
                 ti += 1;
             },
             OpType::Gt => {
                 let b = stack_pop(&mut stack)?;
                 let a = stack_pop(&mut stack)?;
-                stack.push((a > b) as i32);
+                stack.push((a > b) as u64);
                 ti += 1;
             },
             OpType::Lt => {
                 let b = stack_pop(&mut stack)?;
                 let a = stack_pop(&mut stack)?;
-                stack.push((a < b) as i32);
+                stack.push((a < b) as u64);
                 ti += 1;
             },
             
