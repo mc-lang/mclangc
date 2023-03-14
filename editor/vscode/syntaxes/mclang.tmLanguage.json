@@ -123,7 +123,7 @@
 			"patterns": [
 				{
 					"name": "variable.name.source.mclang",
-					"match": "(?<=^|\\s)(\\+|-|\\*|max|divmod|print|=|>|<|>=|<=|!=|>>|<<|\\||&|not|dup|swap|drop|over|rot|argc|argv|here|syscall0|syscall1|syscall2|syscall3|syscall4|syscall5|syscall6|\\?\\?\\?)(?=>$|\\s)"
+					"match": "(?<=^|\\s)(\\+|-|\\*|max|divmod|print|=|>|<|>=|<=|!=|>>|<<|\\||&|not|dup|swap|drop|over|rot|argc|argv|here|syscall0|syscall1|syscall2|syscall3|syscall4|syscall5|syscall6|mem|\\?\\?\\?)(?=>$|\\s)"
 				}
 			]
 		},

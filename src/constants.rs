@@ -17,7 +17,14 @@ pub enum OpType {
     Do,
     Mem,
     Load8,
-    Store8
+    Store8,
+    Syscall0,
+    Syscall1,
+    Syscall2,
+    Syscall3,
+    Syscall4,
+    Syscall5,
+    Syscall6
 }
 
 

@@ -196,6 +196,77 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    jmp addr_{}", token.jmp)?;
                 ti += 1;
             },
+            OpType::Syscall0 => {
+                writeln!(writer, "    ; -- SYSCALL0")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    syscall")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
+            OpType::Syscall1 => {
+                writeln!(writer, "    ; -- SYSCALL1")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rdi")?;
+                writeln!(writer, "    syscall")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
+            OpType::Syscall2 => {
+                writeln!(writer, "    ; -- SYSCALL2")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rdi")?;
+                writeln!(writer, "    pop rsi")?;
+                writeln!(writer, "    syscall")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
+            OpType::Syscall3 => {
+                writeln!(writer, "    ; -- SYSCALL3")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rdi")?;
+                writeln!(writer, "    pop rsi")?;
+                writeln!(writer, "    pop rdx")?;
+                writeln!(writer, "    syscall")?;
+                writeln!(writer, "    push rax")?;
+                
+                ti += 1;
+            },
+            OpType::Syscall4 => {
+                writeln!(writer, "    ; -- SYSCALL4")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rdi")?;
+                writeln!(writer, "    pop rsi")?;
+                writeln!(writer, "    pop rdx")?;
+                writeln!(writer, "    pop r10")?;
+                writeln!(writer, "    syscall")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
+            OpType::Syscall5 => {
+                writeln!(writer, "    ; -- SYSCALL5")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rdi")?;
+                writeln!(writer, "    pop rsi")?;
+                writeln!(writer, "    pop rdx")?;
+                writeln!(writer, "    pop r10")?;
+                writeln!(writer, "    pop r8")?;
+                writeln!(writer, "    syscall")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
+            OpType::Syscall6 => {
+                writeln!(writer, "    ; -- SYSCALL6")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rdi")?;
+                writeln!(writer, "    pop rsi")?;
+                writeln!(writer, "    pop rdx")?;
+                writeln!(writer, "    pop r10")?;
+                writeln!(writer, "    pop r8")?;
+                writeln!(writer, "    pop r9")?;
+                writeln!(writer, "    syscall")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
         }
     }
     writeln!(writer, "addr_{}:", ti)?;

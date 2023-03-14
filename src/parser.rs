@@ -112,6 +112,14 @@ impl Parser {
                 "!8" =>    tokens.push(Operator::new(OpType::Load8, 0, token.file.clone(), token.line, token.col)),
                 "@8" =>    tokens.push(Operator::new(OpType::Store8, 0, token.file.clone(), token.line, token.col)),
 
+                "syscall0" =>    tokens.push(Operator::new(OpType::Syscall0, 0, token.file.clone(), token.line, token.col)),
+                "syscall1" =>    tokens.push(Operator::new(OpType::Syscall1, 0, token.file.clone(), token.line, token.col)),
+                "syscall2" =>    tokens.push(Operator::new(OpType::Syscall2, 0, token.file.clone(), token.line, token.col)),
+                "syscall3" =>    tokens.push(Operator::new(OpType::Syscall3, 0, token.file.clone(), token.line, token.col)),
+                "syscall4" =>    tokens.push(Operator::new(OpType::Syscall4, 0, token.file.clone(), token.line, token.col)),
+                "syscall5" =>    tokens.push(Operator::new(OpType::Syscall5, 0, token.file.clone(), token.line, token.col)),
+                "syscall6" =>    tokens.push(Operator::new(OpType::Syscall6, 0, token.file.clone(), token.line, token.col)),
+
                 
 
 

@@ -1,3 +1,18 @@
-mem 255 @8
 
-mem !8 print
+mem dup 72 @8
+1 + dup 101 @8
+1 + dup 110 @8
+1 + dup 108 @8
+1 + dup 111 @8
+1 + dup 32 @8
+1 + dup 119 @8
+1 + dup 111 @8
+1 + dup 114 @8
+1 + dup 108 @8
+1 + dup 100 @8
+1 + dup 33 @8
+1 + dup 10 @8
+1 +
+
+mem - mem 1 1 syscall3
+

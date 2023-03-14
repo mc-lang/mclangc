@@ -3,6 +3,10 @@
   "displayName": "mclang",
   "description": "Code highlighting for mclang",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:mc-lang/mclang2.git"
+  },
   "engines": {
     "vscode": "^1.54.0"
   },

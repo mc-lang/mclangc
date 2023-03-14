@@ -1,0 +1,5 @@
+
+0 while dup 100 < do
+    dup print
+    1 +
+end
