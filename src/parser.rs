@@ -17,7 +17,7 @@ pub fn cross_ref(mut tokens: Vec<Operator>) -> Vec<Operator> {
                     std::process::exit(1); // idc
                 }
 
-                (*if_og).value = (ip + 1) as i32;
+                (*if_og).jmp = (ip + 1) as i32;
                 stack.push(ip as u32);
             },
             OpType::End => {
@@ -25,21 +25,21 @@ pub fn cross_ref(mut tokens: Vec<Operator>) -> Vec<Operator> {
                 let mut block_og = &mut tokens[block_ip as usize].clone();
                 if vec![OpType::If, OpType::Else].contains(&(*block_og).typ)  {
                     
-                    (*block_og).value = ip as i32;
+                    (*block_og).jmp = ip as i32;
                     tokens[block_ip as usize] = block_og.clone();
 
                     let do_og = &mut tokens[ip as usize].clone(); 
-                    do_og.value = (ip + 1) as i32; 
+                    do_og.jmp = (ip + 1) as i32; 
                     
                     tokens[ip as usize] = (*do_og).clone();
 
                 } else if (*block_og).typ == OpType::Do {
                     let do_og = &mut tokens[ip as usize]; 
-                    do_og.value = block_og.value;
+                    do_og.jmp = block_og.jmp;
 
                     tokens[ip as usize] = (*do_og).clone();
                     let mut block_og = block_og.clone();
-                    block_og.value = (ip + 1) as i32;
+                    block_og.jmp = (ip + 1) as i32;
                     tokens[block_ip as usize] = block_og.clone();
                 } else {
                     util::logger::pos_error(op.clone().pos,"'end' can only close 'if' blocks");
@@ -52,7 +52,7 @@ pub fn cross_ref(mut tokens: Vec<Operator>) -> Vec<Operator> {
             }
             OpType::Do => {
                 let while_ip = stack.pop().unwrap();
-                (&mut tokens[ip as usize]).value = while_ip as i32;
+                (&mut tokens[ip as usize]).jmp = while_ip as i32;
                 stack.push(ip as u32);
             }
             _ => ()
@@ -91,7 +91,7 @@ impl Parser {
                 
                 // stack
                 "dup" => tokens.push(Operator::new(OpType::Dup, 0, token.file.clone(), token.line, token.col)),
-                "pop" => tokens.push(Operator::new(OpType::Pop, 0, token.file.clone(), token.line, token.col)),
+                "drop" => tokens.push(Operator::new(OpType::Pop, 0, token.file.clone(), token.line, token.col)),
 
                 // comp and math
                 "+" => tokens.push(Operator::new(OpType::Plus, 0, token.file.clone(), token.line, token.col)),
@@ -106,6 +106,7 @@ impl Parser {
                 "end" =>   tokens.push(Operator::new(OpType::End, 0, token.file.clone(), token.line, token.col)),
                 "while" => tokens.push(Operator::new(OpType::While, 0, token.file.clone(), token.line, token.col)),
                 "do" =>    tokens.push(Operator::new(OpType::Do, 0, token.file.clone(), token.line, token.col)),
+                "mem" =>    tokens.push(Operator::new(OpType::Mem, 0, token.file.clone(), token.line, token.col)),
                 
 
 

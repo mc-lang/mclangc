@@ -12,10 +12,12 @@ fn stack_pop(stack: &mut Vec<i32>) -> Result<i32, &'static str> {
 pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
     let mut stack: Vec<i32> = Vec::new();
     let mut ti = 0;
+    let mut mem: [u8; 16*1024];
     while ti < tokens.len() {
         let token = &tokens[ti];
         
         match token.typ {
+            // stack 
             OpType::Push => {
                 stack.push(token.value);
                 ti += 1;
@@ -24,6 +26,27 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 stack.pop();
                 ti += 1;
             },
+            OpType::Dup => {
+                let a = stack_pop(&mut stack)?;
+                stack.push(a);
+                stack.push(a);
+                ti += 1;
+            },
+
+            OpType::Print => {
+                let a = stack_pop(&mut stack)?;
+                println!("{a}");
+                // let _ = io::stdout().flush();
+                ti += 1;
+            },
+            // mem
+
+            OpType::Mem => {
+                stack.push(0);
+                ti += 1;
+            }
+
+            // math
             OpType::Plus => {
                 let a = stack_pop(&mut stack)?;
                 let b = stack_pop(&mut stack)?;
@@ -55,30 +78,17 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 ti += 1;
             },
             
-            OpType::Print => {
-                let a = stack_pop(&mut stack)?;
-                println!("{a}");
-                // let _ = io::stdout().flush();
-                ti += 1;
-            },
-
-            OpType::Dup => {
-                let a = stack_pop(&mut stack)?;
-                stack.push(a);
-                stack.push(a);
-                ti += 1;
-            },
+            // blocks
             OpType::If => {
                 let a = stack_pop(&mut stack)?;
                 if a == 0 {
-                    ti = (token.value + 1) as usize;
+                    ti = (token.jmp) as usize;
                 } else {
                     ti += 1;
                 }
             },
             OpType::Else => {
-                ti = token.value as usize;
-
+                ti = token.jmp as usize;
             },
 
             OpType::While => {
@@ -87,13 +97,13 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
             OpType::Do => {
                 let a = stack.pop().unwrap();
                 if a == 0 {
-                    ti = token.value as usize;
+                    ti = token.jmp as usize;
                 } else {
                     ti += 1;
                 }
             }            
             OpType::End => {
-                ti = token.value as usize;
+                ti = token.jmp as usize;
             }
         }
     }

@@ -30,7 +30,12 @@ fn lex_line(text: String) -> Result<Vec<(u32, String)>> {
 }
 
 pub fn lex(code: String, file: &String) -> Result<Vec<Token>> {
-    let lines: Vec<(usize, &str)> = code.split(['\n', '\r']).enumerate().collect();
+    let lines: Vec<(usize, &str)> = code
+        .split("//").collect::<Vec<&str>>()[0]
+        .split(['\n', '\r'])
+        .enumerate()
+        .collect();
+    
     let lines: Vec<(u32, String)> = lines.iter().map(|i| (i.0 as u32, i.1.to_string())).collect();
 
     let mut tokens: Vec<Token> = Vec::new();

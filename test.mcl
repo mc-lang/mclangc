@@ -1,6 +1,1 @@
-10 while dup 0 > do
-    dup print
-    1 -
-end
-
-696969 print
+mem print

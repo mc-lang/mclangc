@@ -14,7 +14,8 @@ pub enum OpType {
     Gt,
     Lt,
     While,
-    Do
+    Do,
+    Mem
 }
 
 
@@ -27,6 +28,7 @@ pub enum OpType {
 pub struct Operator {
     pub typ: OpType,
     pub value: i32,
+    pub jmp: i32,
     pub pos: (String, u32, u32)
 }
 
@@ -35,6 +37,7 @@ impl Operator {
         Self {
             typ,
             value,
+            jmp: 0,
             pos: (file, row, col)
         }
     }

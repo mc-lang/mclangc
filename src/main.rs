@@ -14,7 +14,7 @@ use clap::Parser;
 #[command(author, version, about, long_about = None)]
 pub struct Args {
     /// Input source file
-    #[arg(long, short)]
+    #[arg(long, short)] 
     in_file: String,
 
     /// Output compiled file
