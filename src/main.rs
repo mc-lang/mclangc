@@ -27,14 +27,21 @@ pub struct Args {
 
     /// Interpert
     #[arg(long, short='s')]
-    interpret: bool
+    interpret: bool,
+
+    /// Run the compiled executable
+    #[arg(long, short)]
+    run: bool,
+
+    /// Dont print any output exept the actual running codes output
+    #[arg(long, short)]
+    quiet: bool,
+
 }
 
 fn main() -> Result<(), ()> {
     let args = Args::parse();
 
-    println!("MClang2 0.0.1");
-    
     
     let code = fs::read_to_string(&args.in_file).unwrap();
     let tokens = lexer::lex(code, &args.in_file).unwrap();

@@ -1,37 +1,54 @@
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OpType {
+    
+    // stack
     Push,
     Pop,
+    Print,
+    Dup,
+    Dup2, // a b => a b a b
+    Rot, // a b c => b c a
+    Over, // a b => a b a
+    Swap, // a b => b a
+
+    // math
     Minus,
     Plus,
     Equals,
-    Print,
-    If,
-    Else,
-    End,
-    Dup,
     Gt,
     Lt,
-    While,
-    Do,
+    Band, // &
+    Bor, // |
+    Shr, // >>
+    Shl,  // <<
+    Div, // /
+    Mul,
+    
+    
+    // mem
     Mem,
     Load8,
     Store8,
+
+    // block
+    If,
+    Else,
+    End,
+    While,
+    Do,
+    
+    // syscalls
     Syscall0,
     Syscall1,
     Syscall2,
     Syscall3,
     Syscall4,
     Syscall5,
-    Syscall6
+    Syscall6,
+
+
 }
-
-
-// #[derive(Debug)]
-// pub enum OpType {
-
-// }
 
 #[derive(Debug, Clone)]
 pub struct Operator {

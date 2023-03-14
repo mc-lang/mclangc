@@ -3,6 +3,8 @@ use crate::{constants::{Operator, OpType}, Args};
 use color_eyre::Result;
 use crate::compile::commands::linux_x86_64_compile_and_link;
 
+use super::commands::linux_x86_64_run;
+
 
 pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
     let mut of_c = PathBuf::from(&args.out_file);
@@ -89,6 +91,48 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 
                 ti += 1;
             },
+            OpType::Dup2 => {
+                writeln!(writer, "    ; -- DUP2")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    push rbx")?;
+                writeln!(writer, "    push rax")?;
+                writeln!(writer, "    push rbx")?;
+                writeln!(writer, "    push rax")?;
+                
+                ti += 1;
+            },
+
+            OpType::Rot => {
+                writeln!(writer, "    ; -- DUP")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    pop rcx")?;
+                writeln!(writer, "    push rbx")?;
+                writeln!(writer, "    push rax")?;
+                writeln!(writer, "    push rcx")?;
+                
+                ti += 1;
+            },
+            OpType::Swap => {
+                writeln!(writer, "    ; -- DUP")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    push rbx")?;
+                writeln!(writer, "    push rax")?;
+                
+                ti += 1;
+            },
+            OpType::Over => {
+                writeln!(writer, "    ; -- DUP")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    push rbx")?;
+                writeln!(writer, "    push rax")?;
+                writeln!(writer, "    push rbx")?;
+                
+                ti += 1;
+            },
 
             //mem
             OpType::Mem => {
@@ -166,6 +210,58 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
 
             },
+            OpType::Band => {
+                writeln!(writer, "    ; -- BAND")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    and rax, rbx")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
+            OpType::Bor => {
+                writeln!(writer, "    ; -- BOR")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    or rax, rbx")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
+            OpType::Shr => {
+                writeln!(writer, "    ; -- SHR")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    shr rax, rbx")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
+            OpType::Shl => {
+                writeln!(writer, "    ; -- SHL")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    shl rax, rbx")?;
+                writeln!(writer, "    push rax")?;
+                ti += 1;
+            },
+            OpType::Div => {
+                writeln!(writer, "    ; -- DIV")?;
+                writeln!(writer, "    xor rdx, rdx")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    div rbx")?;
+                writeln!(writer, "    push rax")?;
+                //writeln!(writer, "    push rdx")?;
+                ti += 1;
+            },
+            OpType::Mul => {
+                writeln!(writer, "    ; -- MUL")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    mul rbx")?;
+                writeln!(writer, "    push rax")?;
+                //writeln!(writer, "    push rdx")?;
+                ti += 1;
+            },
+            
 
             // block
             OpType::If => {
@@ -278,6 +374,10 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
     writeln!(writer, "    mem: resb {}", crate::compile::MEM_SZ)?;
 
     writer.flush()?;
-    linux_x86_64_compile_and_link(of_a, of_o, of_c)?;
+    linux_x86_64_compile_and_link(&of_a, &of_o, &of_c, args.quiet)?;
+    if args.run {
+        linux_x86_64_run(&of_c, vec![], args.quiet)?;
+    }
+
     Ok(())
 }

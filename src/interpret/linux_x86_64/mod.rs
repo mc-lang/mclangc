@@ -37,6 +37,39 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 stack.push(a);
                 ti += 1;
             },
+            OpType::Dup2 => {
+                let a = stack_pop(&mut stack)?;
+                let b = stack_pop(&mut stack)?;
+                stack.push(b);
+                stack.push(a);
+                stack.push(b);
+                stack.push(a);
+                ti += 1;
+            }
+            OpType::Rot => {
+                let a = stack_pop(&mut stack)?;
+                let b = stack_pop(&mut stack)?;
+                let c = stack_pop(&mut stack)?;
+                stack.push(b);
+                stack.push(a);
+                stack.push(c);
+                ti += 1;
+            }
+            OpType::Swap => {
+                let a = stack_pop(&mut stack)?;
+                let b = stack_pop(&mut stack)?;
+                stack.push(b);
+                stack.push(a);
+                ti += 1;
+            }
+            OpType::Over => {
+                let a = stack_pop(&mut stack)?;
+                let b = stack_pop(&mut stack)?;
+                stack.push(b);
+                stack.push(a);
+                stack.push(b);
+                ti += 1;
+            }
 
             OpType::Print => {
                 let a = stack_pop(&mut stack)?;
@@ -95,7 +128,49 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 stack.push((a < b) as u64);
                 ti += 1;
             },
+
+            OpType::Band => {
+                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack)?;
+                stack.push((a & b) as u64);
+                ti += 1;
+            }
+
+            OpType::Bor => {
+                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack)?;
+                stack.push((a | b) as u64);
+                ti += 1;
+            }
+
+            OpType::Shr => {
+                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack)?;
+                stack.push((a >> b) as u64);
+                ti += 1;
+            }
+
+            OpType::Shl => {
+                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack)?;
+                stack.push((a << b) as u64);
+                ti += 1;
+            }
             
+            OpType::Div => {
+                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack)?;
+                stack.push((a / b) as u64);
+                ti += 1;
+            }
+            OpType::Mul => {
+                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack)?;
+                stack.push((a * b) as u64);
+                ti += 1;
+            }
+
+
             // blocks
             OpType::If => {
                 let a = stack_pop(&mut stack)?;

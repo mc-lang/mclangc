@@ -92,6 +92,10 @@ impl Parser {
                 // stack
                 "dup" => tokens.push(Operator::new(OpType::Dup, 0, token.file.clone(), token.line, token.col)),
                 "drop" => tokens.push(Operator::new(OpType::Pop, 0, token.file.clone(), token.line, token.col)),
+                "2dup" => tokens.push(Operator::new(OpType::Dup2, 0, token.file.clone(), token.line, token.col)),
+                "rot" => tokens.push(Operator::new(OpType::Rot, 0, token.file.clone(), token.line, token.col)),
+                "over" => tokens.push(Operator::new(OpType::Over, 0, token.file.clone(), token.line, token.col)),
+                "swap" => tokens.push(Operator::new(OpType::Swap, 0, token.file.clone(), token.line, token.col)),
 
                 // comp and math
                 "+" => tokens.push(Operator::new(OpType::Plus, 0, token.file.clone(), token.line, token.col)),
@@ -99,6 +103,11 @@ impl Parser {
                 "=" => tokens.push(Operator::new(OpType::Equals, 0, token.file.clone(), token.line, token.col)),
                 ">" => tokens.push(Operator::new(OpType::Gt, 0, token.file.clone(), token.line, token.col)),
                 "<" => tokens.push(Operator::new(OpType::Lt, 0, token.file.clone(), token.line, token.col)),
+                "band" => tokens.push(Operator::new(OpType::Band, 0, token.file.clone(), token.line, token.col)),
+                "bor" => tokens.push(Operator::new(OpType::Bor, 0, token.file.clone(), token.line, token.col)),
+                "shr" => tokens.push(Operator::new(OpType::Shr, 0, token.file.clone(), token.line, token.col)),
+                "shl" => tokens.push(Operator::new(OpType::Shl, 0, token.file.clone(), token.line, token.col)),
+                "/" => tokens.push(Operator::new(OpType::Div, 0, token.file.clone(), token.line, token.col)),
                 
                 // block
                 "if" =>    tokens.push(Operator::new(OpType::If, 0, token.file.clone(), token.line, token.col)),

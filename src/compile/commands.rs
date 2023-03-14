@@ -3,7 +3,7 @@ use std::process::{Command, Stdio};
 use color_eyre::Result;
 use crate::util::logger;
 
-pub fn linux_x86_64_compile_and_link(of_a: PathBuf, of_o: PathBuf, of_c: PathBuf) -> Result<()> {
+pub fn linux_x86_64_compile_and_link(of_a: &PathBuf, of_o: &PathBuf, of_c: &PathBuf, quiet: bool) -> Result<()> {
     
     let nasm_args = [
         "-felf64",
@@ -20,7 +20,7 @@ pub fn linux_x86_64_compile_and_link(of_a: PathBuf, of_o: PathBuf, of_c: PathBuf
 
 
     let mut proc = if cfg!(target_os = "windows") {
-        todo!("Windows compiling");
+        return Ok(());
     } else {
         Command::new("nasm")
                 .args(&nasm_args)
@@ -28,14 +28,18 @@ pub fn linux_x86_64_compile_and_link(of_a: PathBuf, of_o: PathBuf, of_c: PathBuf
                 .stderr(Stdio::inherit())
                 .spawn()?
     };
-
-    logger::info(format!("running 'nasm {}'", nasm_args.join(" ")).as_str());
+    if !quiet{ 
+        logger::info(format!("running 'nasm {}'", nasm_args.join(" ")).as_str());
+    }
     let exit = proc.wait()?;
-    logger::info(format!("nasm process exited with code {}", exit).as_str());
+
+    if (!quiet) {
+        logger::info(format!("nasm process exited with code {}", exit).as_str());
+    }
 
 
     let mut proc2 = if cfg!(target_os = "windows") {
-        todo!("Windows compiling");
+        return Ok(());
     } else {
         Command::new("ld")
                 .args(&ld_args)
@@ -43,12 +47,37 @@ pub fn linux_x86_64_compile_and_link(of_a: PathBuf, of_o: PathBuf, of_c: PathBuf
                 .stderr(Stdio::inherit())
                 .spawn()?
     };
-
-    logger::info(format!("running 'ld {}'", ld_args.join(" ")).as_str());
+    if (!quiet) {
+        logger::info(format!("running 'ld {}'", ld_args.join(" ")).as_str());
+    }
     let exit2 = proc2.wait()?;
-    logger::info(format!("ld process exited with code {}", exit2).as_str());
+    if (!quiet) {
+        logger::info(format!("ld process exited with code {}", exit2).as_str());
+    }
     
 
     
+    Ok(())
+}
+
+pub fn linux_x86_64_run(bin: &PathBuf, args: Vec<String>, quiet: bool) -> Result<()> {
+    let mut proc = if cfg!(target_os = "windows") {
+        return Ok(());
+    } else {
+        Command::new(bin)
+                //.args(&nasm_args)
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .spawn()?
+    };
+
+    if (!quiet) {
+        logger::info(format!("running '{} {}'", bin.to_string_lossy() ,args.join(" ")).as_str());
+    }
+    let exit = proc.wait()?;
+    if (!quiet) {
+        logger::info(format!("{} process exited with code {}", bin.to_string_lossy(), exit).as_str());
+    }
+
     Ok(())
 }
