@@ -1,46 +1,39 @@
 use crate::{constants::{Operator, OpType, Token}, util};
 use color_eyre::Result;
+use eyre::eyre;
 
-pub fn cross_ref(mut tokens: Vec<Operator>) -> Vec<Operator> {
+pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
     let mut stack: Vec<u32> = Vec::new();
-    for ip in 0..tokens.len() {
-        let op = &tokens.clone()[ip];
+    for ip in 0..program.len() {
+        let op = &program.clone()[ip];
         match op.typ {
             OpType::If => {
                 stack.push(ip as u32)
             }
             OpType::Else => {
                 let if_ip = stack.pop().unwrap();
-                let mut if_og = &mut tokens[if_ip as usize];
-                if !vec![OpType::If].contains(&(*if_og).typ)  {
+                if program[if_ip as usize].typ != OpType::If {
                     util::logger::pos_error(op.clone().pos,"'end' can only close 'if' blocks");
                     std::process::exit(1); // idc
                 }
-
-                (*if_og).jmp = (ip + 1) as i32;
+                
+                // let mut if_og = &mut tokens[if_ip as usize];
+                // (*if_og).jmp = (ip + 1) as i32;
+                program[if_ip as usize].jmp = (ip + 1) as i32;
                 stack.push(ip as u32);
             },
             OpType::End => {
                 let block_ip = stack.pop().unwrap();
-                let mut block_og = &mut tokens[block_ip as usize].clone();
-                if vec![OpType::If, OpType::Else].contains(&(*block_og).typ)  {
+                // let mut block_og = &mut tokens[block_ip as usize].clone();
+                if program[block_ip as usize].typ == OpType::If || 
+                   program[block_ip as usize].typ == OpType::Else {
                     
-                    (*block_og).jmp = ip as i32;
-                    tokens[block_ip as usize] = block_og.clone();
+                    program[block_ip as usize].jmp = ip as i32;
+                    program[ip as usize].jmp = (ip + 1)as i32;
 
-                    let do_og = &mut tokens[ip as usize].clone(); 
-                    do_og.jmp = (ip + 1) as i32; 
-                    
-                    tokens[ip as usize] = (*do_og).clone();
-
-                } else if (*block_og).typ == OpType::Do {
-                    let do_og = &mut tokens[ip as usize]; 
-                    do_og.jmp = block_og.jmp;
-
-                    tokens[ip as usize] = (*do_og).clone();
-                    let mut block_og = block_og.clone();
-                    block_og.jmp = (ip + 1) as i32;
-                    tokens[block_ip as usize] = block_og.clone();
+                } else if program[block_ip as usize].typ == OpType::Do {
+                    program[ip].jmp = program[block_ip as usize].jmp;
+                    program[block_ip as usize].jmp = (ip + 1) as i32;
                 } else {
                     util::logger::pos_error(op.clone().pos,"'end' can only close 'if' blocks");
                     std::process::exit(1); // idc
@@ -52,14 +45,19 @@ pub fn cross_ref(mut tokens: Vec<Operator>) -> Vec<Operator> {
             }
             OpType::Do => {
                 let while_ip = stack.pop().unwrap();
-                (&mut tokens[ip as usize]).jmp = while_ip as i32;
+                program[ip as usize].jmp = while_ip as i32;
                 stack.push(ip as u32);
             }
             _ => ()
         }
 
     }
-    tokens.clone()
+    if stack.len() > 0 {
+        util::logger::pos_error(program[stack.pop().expect("Empy stack") as usize].clone().pos,"Unclosed block");
+        return Err(eyre!("Unclosed block"));
+    }
+
+    Ok(program.clone())
 }
 
 pub struct Parser {
@@ -73,7 +71,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Operator>, ()> {
+    pub fn parse(&mut self) -> Result<Vec<Operator>> {
         let mut tokens = Vec::new();
 
         for token in &self.tokens {
@@ -91,7 +89,7 @@ impl Parser {
                 
                 // stack
                 "dup" => tokens.push(Operator::new(OpType::Dup, 0, token.file.clone(), token.line, token.col)),
-                "drop" => tokens.push(Operator::new(OpType::Pop, 0, token.file.clone(), token.line, token.col)),
+                "drop" => tokens.push(Operator::new(OpType::Drop, 0, token.file.clone(), token.line, token.col)),
                 "2dup" => tokens.push(Operator::new(OpType::Dup2, 0, token.file.clone(), token.line, token.col)),
                 "rot" => tokens.push(Operator::new(OpType::Rot, 0, token.file.clone(), token.line, token.col)),
                 "over" => tokens.push(Operator::new(OpType::Over, 0, token.file.clone(), token.line, token.col)),
@@ -108,6 +106,7 @@ impl Parser {
                 "shr" => tokens.push(Operator::new(OpType::Shr, 0, token.file.clone(), token.line, token.col)),
                 "shl" => tokens.push(Operator::new(OpType::Shl, 0, token.file.clone(), token.line, token.col)),
                 "/" => tokens.push(Operator::new(OpType::Div, 0, token.file.clone(), token.line, token.col)),
+                "*" => tokens.push(Operator::new(OpType::Mul, 0, token.file.clone(), token.line, token.col)),
                 
                 // block
                 "if" =>    tokens.push(Operator::new(OpType::If, 0, token.file.clone(), token.line, token.col)),
@@ -134,11 +133,11 @@ impl Parser {
 
                 t => {
                     util::logger::pos_error(pos, format!("Unknown token '{}'", t).as_str());
-                    return Err(());
+                    return Err(eyre!("Unknown token"));
                 }
             }
         }
 
-        Ok(cross_ref(tokens))
+        Ok(cross_ref(tokens)?)
     }
 }

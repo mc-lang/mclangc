@@ -4,7 +4,7 @@ pub enum OpType {
     
     // stack
     Push,
-    Pop,
+    Drop,
     Print,
     Dup,
     Dup2, // a b => a b a b
@@ -70,7 +70,7 @@ impl Operator {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub file: String,
     pub line: u32,

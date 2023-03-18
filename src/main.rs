@@ -39,28 +39,25 @@ pub struct Args {
 
 }
 
-fn main() -> Result<(), ()> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     
-    let code = fs::read_to_string(&args.in_file).unwrap();
-    let tokens = lexer::lex(code, &args.in_file).unwrap();
+    let code = fs::read_to_string(&args.in_file)?;
+    let tokens = lexer::lex(code, &args.in_file)?;
 
     // for token in &tokens {
     //     println!("(f: {}, l: {}, c: {}, t: {})", token.file, token.line, token.col, token.text);
     // }
 
     let mut parser = parser::Parser::new(tokens);
-    let tokens = match parser.parse(){
-        Ok(t) => t,
-        Err(_) => return Ok(())
-    };
+    let tokens = parser.parse()?;
     if args.compile && args.interpret {
         util::logger::error("Cannot compile and interpret at the same time");
     } else if args.interpret {
-        let _ = interpret::linux_x86_64::run(tokens);
+        interpret::linux_x86_64::run(tokens)?;
     } else if args.compile {
-        let _ = compile::linux_x86_64::compile(tokens, args);
+        compile::linux_x86_64::compile(tokens, args)?;
     } else {
         util::logger::error("Did not choose to compile or to interpret, exiting");
     }

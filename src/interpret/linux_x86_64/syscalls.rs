@@ -1,13 +1,24 @@
 
-pub fn sys_write(rax: u64, rdi: u64, rsi: u64, rdx: u64, mem: &Vec<u8> ) -> u64 {
-    for c in rsi..rdx {
-        match rdi {
-            1 => print!("{}", unsafe { char::from_u32_unchecked((mem[(rsi + c) as usize]) as u32) }),
-            2 => eprint!("{}", unsafe { char::from_u32_unchecked((mem[(rsi + c) as usize]) as u32) }),
-            _ => panic!("Unknown file {}", rdi)
-        };
-        let _ = std::io::Write::flush(&mut std::io::stdout());
-        let _ = std::io::Write::flush(&mut std::io::stderr());
-    }
-    rax
+pub fn sys_write(sys_n: u64, fd: u64, buff: u64, count: u64, mem: &Vec<u8> ) -> u64 {
+    let mem = (*mem).clone();
+    let buff = buff as usize;
+    let count = count as usize;
+    // println!("{:?}", &mem[buff..(buff + count)]);
+    // return 0 ;
+    let s = &mem[buff..(buff + count)].iter().map(|i| {
+        char::from_u32((*i) as u32).unwrap_or('_').to_string()
+    }).collect::<Vec<String>>().join("");
+    
+    match fd {
+        1 => {
+            print!("{}", s);
+        },
+        2 => {
+            eprint!("{}", s);
+        },
+        _ => panic!("Unknown file {}", fd)
+    };
+    let _ = std::io::Write::flush(&mut std::io::stdout());
+    let _ = std::io::Write::flush(&mut std::io::stderr());
+    sys_n
 }

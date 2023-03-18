@@ -22,7 +22,14 @@ fn lex_line(text: String) -> Result<Vec<(u32, String)>> {
     while col_end < text.clone().len() as u32 {
         col_end = find_col(text.clone(), col, |x| x.is_whitespace())?;
         let t = &text[(col as usize)..((col_end as usize))];
-        tokens.push((col, t.to_string()));
+
+        if t == "//" {
+            return Ok(tokens);
+        }
+
+        if !t.is_empty() {
+            tokens.push((col, t.to_string()));
+        }
         col = find_col(text.clone(), col_end, |x| !x.is_whitespace())?;
     }
 
@@ -31,7 +38,6 @@ fn lex_line(text: String) -> Result<Vec<(u32, String)>> {
 
 pub fn lex(code: String, file: &String) -> Result<Vec<Token>> {
     let lines: Vec<(usize, &str)> = code
-        .split("//").collect::<Vec<&str>>()[0]
         .split(['\n', '\r'])
         .enumerate()
         .collect();
@@ -52,6 +58,10 @@ pub fn lex(code: String, file: &String) -> Result<Vec<Token>> {
             tokens.push(t);
         }
     }
+    // println!("{}", tokens.len());
 
+    // for token in tokens.clone() {
+    //     println!("tok: {:?}", token.text);
+    // }
     Ok(tokens)
 }

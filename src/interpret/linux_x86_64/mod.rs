@@ -1,45 +1,51 @@
-use std::fmt::format;
-
-use crate::{constants::OpType, util::logger};
+use crate::{constants::OpType, util::{logger, self}};
 // use crate::util::logger;
 use color_eyre::Result;
-
+use eyre::eyre;
 mod syscalls;
 
-fn stack_pop(stack: &mut Vec<u64>) -> Result<u64, &'static str> {
+fn stack_pop(stack: &mut Vec<u64>, pos: &(String, u32, u32)) -> Result<u64> {
     match stack.pop() {
         Some(i) => Ok(i),
-        None => Err("Stack underflow"),
+        None => {
+            util::logger::pos_error(pos.clone(), "Stack underflow");
+            Err(eyre!("Stack underflow"))
+        },
     }
 }
 
-pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
+pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
     let mut stack: Vec<u64> = Vec::new();
     let mut ti = 0;
     let mut mem: Vec<u8> = vec![0; crate::compile::MEM_SZ as usize];
+    // for token in &tokens {
+    //     println!("{{typ: \"{:?}\", val: {}, jmp: {}}}", token.typ, token.value, token.jmp);
 
+    // }
     while ti < tokens.len() {
         let token = &tokens[ti];
-        
+        let pos = token.pos.clone();
+        // println!("{:?}", token.typ);
         match token.typ {
+            
             // stack 
             OpType::Push => {
                 stack.push(token.value as u64);
                 ti += 1;
             },
-            OpType::Pop => {
+            OpType::Drop => {
                 stack.pop();
                 ti += 1;
             },
             OpType::Dup => {
-                let a = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
                 stack.push(a);
                 stack.push(a);
                 ti += 1;
             },
             OpType::Dup2 => {
-                let a = stack_pop(&mut stack)?;
-                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
                 stack.push(b);
                 stack.push(a);
                 stack.push(b);
@@ -47,24 +53,24 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 ti += 1;
             }
             OpType::Rot => {
-                let a = stack_pop(&mut stack)?;
-                let b = stack_pop(&mut stack)?;
-                let c = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                let c = stack_pop(&mut stack, &pos)?;
                 stack.push(b);
                 stack.push(a);
                 stack.push(c);
                 ti += 1;
             }
             OpType::Swap => {
-                let a = stack_pop(&mut stack)?;
-                let b = stack_pop(&mut stack)?;
-                stack.push(b);
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
                 stack.push(a);
+                stack.push(b);
                 ti += 1;
             }
             OpType::Over => {
-                let a = stack_pop(&mut stack)?;
-                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
                 stack.push(b);
                 stack.push(a);
                 stack.push(b);
@@ -72,7 +78,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
             }
 
             OpType::Print => {
-                let a = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
                 println!("{a}");
                 // let _ = io::stdout().flush();
                 ti += 1;
@@ -84,159 +90,162 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<(), &'static str>{
                 ti += 1;
             }
             OpType::Load8 => {
-                let a = stack_pop(&mut stack)?;
-
-                stack.push(mem[a as usize] as u64);
+                let a = stack_pop(&mut stack, &pos)?;
+                let byte = mem[a as usize];
+                stack.push(byte as u64);
                 ti += 1;
             }
             OpType::Store8 => {
-                let a = stack_pop(&mut stack)?;
-                let b = stack_pop(&mut stack)?;
+                let val = stack_pop(&mut stack, &pos)?;
+                let addr = stack_pop(&mut stack, &pos)?;
 
-                mem[b as usize] = a as u8;
+                mem[addr as usize] = (val & 0xFF) as u8;
                 ti += 1;
             }
 
             // math
             OpType::Plus => {
-                let a = stack_pop(&mut stack)?;
-                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
                 stack.push(b + a);
                 ti += 1;
             },
             OpType::Minus => {
-                let a = stack_pop(&mut stack)?;
-                let b = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
                 stack.push(b - a);
                 ti += 1;
             },
             OpType::Equals => {
-                let a = stack_pop(&mut stack)?;
-                let b = stack_pop(&mut stack)?;
-                stack.push((a == b) as u64);
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b == a) as u64);
                 ti += 1;
             },
             OpType::Gt => {
-                let b = stack_pop(&mut stack)?;
-                let a = stack_pop(&mut stack)?;
-                stack.push((a > b) as u64);
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b > a) as u64);
                 ti += 1;
             },
             OpType::Lt => {
-                let b = stack_pop(&mut stack)?;
-                let a = stack_pop(&mut stack)?;
-                stack.push((a < b) as u64);
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b < a) as u64);
                 ti += 1;
             },
 
             OpType::Band => {
-                let b = stack_pop(&mut stack)?;
-                let a = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
                 stack.push((a & b) as u64);
                 ti += 1;
             }
 
             OpType::Bor => {
-                let b = stack_pop(&mut stack)?;
-                let a = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
                 stack.push((a | b) as u64);
                 ti += 1;
             }
 
             OpType::Shr => {
-                let b = stack_pop(&mut stack)?;
-                let a = stack_pop(&mut stack)?;
-                stack.push((a >> b) as u64);
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b >> a) as u64);
                 ti += 1;
             }
 
             OpType::Shl => {
-                let b = stack_pop(&mut stack)?;
-                let a = stack_pop(&mut stack)?;
-                stack.push((a << b) as u64);
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b << a) as u64);
                 ti += 1;
             }
             
             OpType::Div => {
-                let b = stack_pop(&mut stack)?;
-                let a = stack_pop(&mut stack)?;
-                stack.push((a / b) as u64);
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b / a) as u64);
                 ti += 1;
             }
             OpType::Mul => {
-                let b = stack_pop(&mut stack)?;
-                let a = stack_pop(&mut stack)?;
-                stack.push((a * b) as u64);
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b * a) as u64);
                 ti += 1;
             }
 
 
             // blocks
             OpType::If => {
-                let a = stack_pop(&mut stack)?;
+                let a = stack_pop(&mut stack, &pos)?;
                 if a == 0 {
+                    // println!("If({ti}) => t: {:?} j: {}", tokens[token.jmp as usize].typ, token.jmp);
                     ti = (token.jmp) as usize;
                 } else {
                     ti += 1;
                 }
             },
             OpType::Else => {
-                ti = token.jmp as usize;
+                // println!("Else({ti}) => t: {:?} j: {}", tokens[token.jmp as usize].typ, token.jmp);
+                ti = (token.jmp) as usize;
             },
-
+            OpType::End => {
+                // println!("End({ti}) => t: {:?} j: {}", tokens[token.jmp as usize].typ, token.jmp);
+                ti = (token.jmp) as usize;
+            }
             OpType::While => {
                 ti += 1;
             }
             OpType::Do => {
                 let a = stack.pop().unwrap();
                 if a == 0 {
-                    ti = token.jmp as usize;
+                    ti = (token.jmp) as usize;
                 } else {
                     ti += 1;
                 }
             }            
-            OpType::End => {
-                ti = token.jmp as usize;
-            }
             OpType::Syscall0 => {
                 todo!();
-                ti += 1;
+                // ti += 1;
             },
             OpType::Syscall1 => {
                 todo!();
-                ti += 1;
+                // ti += 1;
             },
             OpType::Syscall2 => {
                 todo!();
-                ti += 1;
+                // ti += 1;
             },
             OpType::Syscall3 => {
-                let rax = stack_pop(&mut stack)?;
-                let rdi = stack_pop(&mut stack)?;
-                let rsi = stack_pop(&mut stack)?;
-                let rdx = stack_pop(&mut stack)?;
-
+                let rax = stack_pop(&mut stack, &pos)?;
+                let rdi = stack_pop(&mut stack, &pos)?;
+                let rsi = stack_pop(&mut stack, &pos)?;
+                let rdx = stack_pop(&mut stack, &pos)?;
+                // println!("yes");
                 let ret = match rax {
                     1 => syscalls::sys_write(rax, rdi, rsi, rdx, &mem),
                     _ => {
                         logger::error(format!("Syscall(3) #{} is not implemented", rax).as_str());
-                        return Err("Exiting");
+                        return Err(eyre!("Syscall not implemented"));
                     }
                 };
                 stack.push(ret);
+                // println!("{}", stack.len());
                 ti += 1;
             },
             OpType::Syscall4 => {
                 todo!();
-                ti += 1;
+                // ti += 1;
             },
             OpType::Syscall5 => {
                 todo!();
-                ti += 1;
+                // ti += 1;
             },
             OpType::Syscall6 => {
                 todo!();
-                ti += 1;
+                // ti += 1;
             },
         }
     }

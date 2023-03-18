@@ -18,7 +18,9 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
     let file = fs::File::create(&of_a)?;
     let mut writer = BufWriter::new(&file);
 
-    writeln!(writer, "global _start")?;
+    // println!("{}", tokens.len());
+
+    writeln!(writer, "BITS 64")?;
     writeln!(writer, "segment .text")?;
     
     writeln!(writer, "print:")?;
@@ -54,7 +56,8 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
     writeln!(writer, "    syscall")?;
     writeln!(writer, "    add     rsp, 40")?;
     writeln!(writer, "    ret")?;
-
+    
+    writeln!(writer, "global _start")?;
     writeln!(writer, "_start:")?;
     
     let mut ti = 0;
@@ -65,26 +68,26 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
         match token.typ {
             // stack
             OpType::Push => {
-                writeln!(writer, "    ; -- PUSH {}", token.value)?;
+                writeln!(writer, "    ;; -- push {} --", token.value)?;
                 writeln!(writer, "    mov rax, {}", token.value)?;
                 writeln!(writer, "    push rax")?;
                 ti += 1;
                 
             },
-            OpType::Pop => {
-                writeln!(writer, "    ; -- POP")?;
-                writeln!(writer, "    pop")?;
+            OpType::Drop => {
+                writeln!(writer, "    ;; -- drop --")?;
+                writeln!(writer, "    pop rax")?;
                 ti += 1;
             },
             OpType::Print => {
-                writeln!(writer, "    ; -- PRINT")?;
+                writeln!(writer, "    ;; -- print --")?;
                 writeln!(writer, "    pop rdi")?;
                 writeln!(writer, "    call print")?;
                 ti += 1;
             },
 
             OpType::Dup => {
-                writeln!(writer, "    ; -- DUP")?;
+                writeln!(writer, "    ;; -- dup --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    push rax")?;
                 writeln!(writer, "    push rax")?;
@@ -92,19 +95,19 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::Dup2 => {
-                writeln!(writer, "    ; -- DUP2")?;
-                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    ;; -- 2dup --")?;
                 writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    push rbx")?;
+                writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    push rax")?;
                 writeln!(writer, "    push rbx")?;
                 writeln!(writer, "    push rax")?;
+                writeln!(writer, "    push rbx")?;
                 
                 ti += 1;
             },
 
             OpType::Rot => {
-                writeln!(writer, "    ; -- DUP")?;
+                writeln!(writer, "    ;; -- rot --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    pop rcx")?;
@@ -115,16 +118,16 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::Swap => {
-                writeln!(writer, "    ; -- DUP")?;
+                writeln!(writer, "    ;; -- swap --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    push rbx")?;
                 writeln!(writer, "    push rax")?;
+                writeln!(writer, "    push rbx")?;
                 
                 ti += 1;
             },
             OpType::Over => {
-                writeln!(writer, "    ; -- DUP")?;
+                writeln!(writer, "    ;; -- over --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    push rbx")?;
@@ -136,12 +139,12 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
 
             //mem
             OpType::Mem => {
-                writeln!(writer, "    ; -- MEM")?;
+                writeln!(writer, "    ;; -- mem --")?;
                 writeln!(writer, "    push mem")?;
                 ti += 1;
             }
             OpType::Load8 => {
-                writeln!(writer, "    ; -- LOAD64")?;
+                writeln!(writer, "    ;; -- load --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    xor rbx, rbx")?;
                 writeln!(writer, "    mov bl, [rax]")?;
@@ -150,7 +153,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
             }
 
             OpType::Store8 => {
-                writeln!(writer, "    ; -- STORE64")?;
+                writeln!(writer, "    ;; -- store --")?;
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    mov [rax], bl")?;
@@ -159,7 +162,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
 
             // math
             OpType::Plus => {
-                writeln!(writer, "    ; -- PLUS")?;
+                writeln!(writer, "    ;; -- plus --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    add rax, rbx")?;
@@ -167,7 +170,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::Minus => {
-                writeln!(writer, "    ; -- MINUS")?;
+                writeln!(writer, "    ;; -- minus --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    sub rbx, rax")?;
@@ -175,7 +178,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::Equals => {
-                writeln!(writer, "    ; -- EQUALS")?;
+                writeln!(writer, "    ;; -- equals --")?;
                 writeln!(writer, "    mov rcx, 0")?;
                 writeln!(writer, "    mov rdx, 1")?;
                 writeln!(writer, "    pop rax")?;
@@ -187,7 +190,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
 
             },
             OpType::Lt => {
-                writeln!(writer, "    ; -- LT")?;
+                writeln!(writer, "    ;; -- lt --")?;
                 writeln!(writer, "    mov rcx, 0")?;
                 writeln!(writer, "    mov rdx, 1")?;
                 writeln!(writer, "    pop rbx")?;
@@ -199,7 +202,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
 
             },
             OpType::Gt => {
-                writeln!(writer, "    ; -- GT")?;
+                writeln!(writer, "    ;; -- gt --")?;
                 writeln!(writer, "    mov rcx, 0")?;
                 writeln!(writer, "    mov rdx, 1")?;
                 writeln!(writer, "    pop rbx")?;
@@ -211,49 +214,49 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
 
             },
             OpType::Band => {
-                writeln!(writer, "    ; -- BAND")?;
+                writeln!(writer, "    ;; -- band --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    and rax, rbx")?;
-                writeln!(writer, "    push rax")?;
+                writeln!(writer, "    and rbx, rax")?;
+                writeln!(writer, "    push rbx")?;
                 ti += 1;
             },
             OpType::Bor => {
-                writeln!(writer, "    ; -- BOR")?;
+                writeln!(writer, "    ;; -- bor --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    or rax, rbx")?;
-                writeln!(writer, "    push rax")?;
+                writeln!(writer, "    or rbx, rax")?;
+                writeln!(writer, "    push rbx")?;
                 ti += 1;
             },
             OpType::Shr => {
-                writeln!(writer, "    ; -- SHR")?;
-                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    ;; -- shr --")?;
+                writeln!(writer, "    pop rcx")?;
                 writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    shr rax, rbx")?;
-                writeln!(writer, "    push rax")?;
+                writeln!(writer, "    shr rbx, cl")?;
+                writeln!(writer, "    push rbx")?;
                 ti += 1;
             },
             OpType::Shl => {
-                writeln!(writer, "    ; -- SHL")?;
-                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    ;; -- shl --")?;
+                writeln!(writer, "    pop rcx")?;
                 writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    shl rax, rbx")?;
-                writeln!(writer, "    push rax")?;
+                writeln!(writer, "    shl rbx, cl")?;
+                writeln!(writer, "    push rbx")?;
                 ti += 1;
             },
             OpType::Div => {
-                writeln!(writer, "    ; -- DIV")?;
+                writeln!(writer, "    ;; -- div --")?;
                 writeln!(writer, "    xor rdx, rdx")?;
-                writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    div rbx")?;
                 writeln!(writer, "    push rax")?;
                 //writeln!(writer, "    push rdx")?;
                 ti += 1;
             },
             OpType::Mul => {
-                writeln!(writer, "    ; -- MUL")?;
+                writeln!(writer, "    ;; -- mul --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    mul rbx")?;
@@ -265,42 +268,44 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
 
             // block
             OpType::If => {
-                writeln!(writer, "    ; -- IF")?;
+                writeln!(writer, "    ;; -- if --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    test rax, rax")?;
                 writeln!(writer, "    jz addr_{}", token.jmp)?;
                 ti += 1;
             },
             OpType::Else => {
-                writeln!(writer, "    ; -- ELSE")?;
+                writeln!(writer, "    ;; -- else --")?;
                 writeln!(writer, "    jmp addr_{}", token.jmp)?;
                 ti += 1;
             },
             OpType::While => {
-                writeln!(writer, "    ; -- WHILE")?;
+                writeln!(writer, "    ;; -- while --")?;
                 ti += 1;
             }
             OpType::Do => {
-                writeln!(writer, "    ; -- DO")?;
+                writeln!(writer, "    ;; -- do --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    test rax, rax")?;
                 writeln!(writer, "    jz addr_{}", token.jmp)?;
                 ti += 1;
             }
             OpType::End => {
-                writeln!(writer, "    ; -- END")?;
-                writeln!(writer, "    jmp addr_{}", token.jmp)?;
+                writeln!(writer, "    ;; -- end --")?;
+                if ti + 1 != token.jmp as usize {
+                    writeln!(writer, "    jmp addr_{}", token.jmp)?;
+                }
                 ti += 1;
             },
             OpType::Syscall0 => {
-                writeln!(writer, "    ; -- SYSCALL0")?;
+                writeln!(writer, "    ;; -- syscall0 --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    syscall")?;
                 writeln!(writer, "    push rax")?;
                 ti += 1;
             },
             OpType::Syscall1 => {
-                writeln!(writer, "    ; -- SYSCALL1")?;
+                writeln!(writer, "    ;; -- syscall1 --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rdi")?;
                 writeln!(writer, "    syscall")?;
@@ -308,7 +313,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::Syscall2 => {
-                writeln!(writer, "    ; -- SYSCALL2")?;
+                writeln!(writer, "    ;; -- syscall2 --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rdi")?;
                 writeln!(writer, "    pop rsi")?;
@@ -317,7 +322,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::Syscall3 => {
-                writeln!(writer, "    ; -- SYSCALL3")?;
+                writeln!(writer, "    ;; -- syscall3 --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rdi")?;
                 writeln!(writer, "    pop rsi")?;
@@ -328,7 +333,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::Syscall4 => {
-                writeln!(writer, "    ; -- SYSCALL4")?;
+                writeln!(writer, "    ;; -- syscall4 --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rdi")?;
                 writeln!(writer, "    pop rsi")?;
@@ -339,7 +344,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::Syscall5 => {
-                writeln!(writer, "    ; -- SYSCALL5")?;
+                writeln!(writer, "    ;; -- syscall5 --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rdi")?;
                 writeln!(writer, "    pop rsi")?;
@@ -351,7 +356,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::Syscall6 => {
-                writeln!(writer, "    ; -- SYSCALL6")?;
+                writeln!(writer, "    ;; -- syscall6 --")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    pop rdi")?;
                 writeln!(writer, "    pop rsi")?;
@@ -371,7 +376,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
     writeln!(writer, "    syscall")?;
 
     writeln!(writer, "segment .bss")?;
-    writeln!(writer, "    mem: resb {}", crate::compile::MEM_SZ)?;
+    writeln!(writer, "mem: resb {}", crate::compile::MEM_SZ)?;
 
     writer.flush()?;
     linux_x86_64_compile_and_link(&of_a, &of_o, &of_c, args.quiet)?;
