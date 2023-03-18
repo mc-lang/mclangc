@@ -30,6 +30,8 @@ pub mod color {
 
 pub mod logger {
     #![allow(dead_code)]
+    use std::ops::Deref;
+
     use crate::util::color;
 
     pub fn error(msg: &str) {
@@ -49,19 +51,19 @@ pub mod logger {
     }
 
 
-    pub fn pos_error(pos: (String, u32, u32), msg: &str) {
+    pub fn pos_error<P: Deref<Target = (String, u32, u32)>>(pos: P, msg: &str) {
         println!("{f}:{r}:{c} {red}error{rs}: {msg}", red=color::FG_RED, rs=color::RESET, f=pos.0, r=pos.1, c=pos.2);
     }
 
-    pub fn pos_warn(pos: (String, u32, u32), msg: &str) {
+    pub fn pos_warn<P: Deref<Target = (String, u32, u32)>>(pos: P, msg: &str) {
         println!("{f}:{r}:{c} {yellow}warn{rs}: {msg}", yellow=color::FG_YELLOW, rs=color::RESET, f=pos.0, r=pos.1, c=pos.2);
     }
 
-    pub fn pos_info(pos: (String, u32, u32), msg: &str) {
+    pub fn pos_info<P: Deref<Target = (String, u32, u32)>>(pos: P, msg: &str) {
         println!("{f}:{r}:{c} {green}info{rs}: {msg}", green=color::FG_GREEN, rs=color::RESET, f=pos.0, r=pos.1, c=pos.2);
     }
     
-    pub fn pos_note(pos: (String, u32, u32), msg: &str) {
+    pub fn pos_note<P: Deref<Target = (String, u32, u32)>>(pos: P, msg: &str) {
         println!("{f}:{r}:{c} {blue}note{rs}: {msg}", blue=color::FG_BLUE, rs=color::RESET, f=pos.0, r=pos.1, c=pos.2);
     }
 

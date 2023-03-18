@@ -75,5 +75,14 @@ pub struct Token {
     pub file: String,
     pub line: u32,
     pub col: u32,
-    pub text: String
+    pub text: String,
+    pub typ: TokenType
+}
+
+#[derive(Debug, Clone)]
+pub enum TokenType {
+    Word,
+    Int,
+    // String,
+    //TODO: Add char
 }

@@ -1,8 +1,17 @@
 
-use crate::constants::Token;
+use crate::constants::{Token, TokenType};
 use color_eyre::Result;
 
-
+fn lex_word(s: String) -> (TokenType, String) {
+    match s {
+        s if s.parse::<u64>().is_ok() => { // negative numbers not yet implemented
+            return (TokenType::Int, s);
+        },
+        s => {
+            return(TokenType::Word, s);
+        }
+    }
+}
 
 pub fn find_col<F>(text: String, mut col: u32, predicate: F) -> Result<u32> where F: Fn(char) -> bool {
     while (col as usize) < text.len() && !predicate(text.chars().nth(col as usize).unwrap()) {
@@ -49,11 +58,13 @@ pub fn lex(code: String, file: &String) -> Result<Vec<Token>> {
     for (row, line) in lines {
         let lt = lex_line(line)?;
         for (col, tok) in lt {
+            let (tok_type, tok) = lex_word(tok);
             let t = Token{
                 file: file.clone(),
                 line: row + 1,
                 col: col,
                 text: tok,
+                typ: tok_type
             };
             tokens.push(t);
         }

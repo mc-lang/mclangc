@@ -1,4 +1,6 @@
-use crate::{constants::{Operator, OpType, Token}, util};
+use std::{collections::HashMap, ops::Deref};
+
+use crate::{constants::{Operator, OpType, Token, TokenType}, util};
 use color_eyre::Result;
 use eyre::eyre;
 
@@ -13,7 +15,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
             OpType::Else => {
                 let if_ip = stack.pop().unwrap();
                 if program[if_ip as usize].typ != OpType::If {
-                    util::logger::pos_error(op.clone().pos,"'end' can only close 'if' blocks");
+                    util::logger::pos_error(&op.clone().pos,"'end' can only close 'if' blocks");
                     std::process::exit(1); // idc
                 }
                 
@@ -35,7 +37,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                     program[ip].jmp = program[block_ip as usize].jmp;
                     program[block_ip as usize].jmp = (ip + 1) as i32;
                 } else {
-                    util::logger::pos_error(op.clone().pos,"'end' can only close 'if' blocks");
+                    util::logger::pos_error(&op.clone().pos,"'end' can only close 'if' blocks");
                     std::process::exit(1); // idc
                 }
 
@@ -53,7 +55,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
 
     }
     if stack.len() > 0 {
-        util::logger::pos_error(program[stack.pop().expect("Empy stack") as usize].clone().pos,"Unclosed block");
+        util::logger::pos_error(&program[stack.pop().expect("Empy stack") as usize].clone().pos,"Unclosed block");
         return Err(eyre!("Unclosed block"));
     }
 
@@ -79,65 +81,75 @@ impl Parser {
                 continue;
             }
             let pos = (token.file.clone(), token.line, token.col);
-            match token.text.as_str() {
-                t if t.parse::<u64>().is_ok() => { // negative numbers not yet implemented
-                    let num = t.parse::<i64>().unwrap();
-                    tokens.push(Operator::new(OpType::Push, num, token.file.clone(), token.line, token.col));
+            match token.typ {
+                TokenType::Word => {
+                    let word_type = lookup_word(token.text.clone(), &pos)?;
+                    tokens.push(Operator { typ: word_type , value: 0, jmp: 0, pos: pos });
                 },
-                
-                "print" => tokens.push(Operator::new(OpType::Print, 0, token.file.clone(), token.line, token.col)),
-                
-                // stack
-                "dup" => tokens.push(Operator::new(OpType::Dup, 0, token.file.clone(), token.line, token.col)),
-                "drop" => tokens.push(Operator::new(OpType::Drop, 0, token.file.clone(), token.line, token.col)),
-                "2dup" => tokens.push(Operator::new(OpType::Dup2, 0, token.file.clone(), token.line, token.col)),
-                "rot" => tokens.push(Operator::new(OpType::Rot, 0, token.file.clone(), token.line, token.col)),
-                "over" => tokens.push(Operator::new(OpType::Over, 0, token.file.clone(), token.line, token.col)),
-                "swap" => tokens.push(Operator::new(OpType::Swap, 0, token.file.clone(), token.line, token.col)),
+                TokenType::Int => {// negative numbers not yet implemented
+                    tokens.push(Operator::new(OpType::Push, token.text.parse::<i64>()?, token.file.clone(), token.line, token.col));
+                },
+            };
 
-                // comp and math
-                "+" => tokens.push(Operator::new(OpType::Plus, 0, token.file.clone(), token.line, token.col)),
-                "-" => tokens.push(Operator::new(OpType::Minus, 0, token.file.clone(), token.line, token.col)),
-                "=" => tokens.push(Operator::new(OpType::Equals, 0, token.file.clone(), token.line, token.col)),
-                ">" => tokens.push(Operator::new(OpType::Gt, 0, token.file.clone(), token.line, token.col)),
-                "<" => tokens.push(Operator::new(OpType::Lt, 0, token.file.clone(), token.line, token.col)),
-                "band" => tokens.push(Operator::new(OpType::Band, 0, token.file.clone(), token.line, token.col)),
-                "bor" => tokens.push(Operator::new(OpType::Bor, 0, token.file.clone(), token.line, token.col)),
-                "shr" => tokens.push(Operator::new(OpType::Shr, 0, token.file.clone(), token.line, token.col)),
-                "shl" => tokens.push(Operator::new(OpType::Shl, 0, token.file.clone(), token.line, token.col)),
-                "/" => tokens.push(Operator::new(OpType::Div, 0, token.file.clone(), token.line, token.col)),
-                "*" => tokens.push(Operator::new(OpType::Mul, 0, token.file.clone(), token.line, token.col)),
-                
-                // block
-                "if" =>    tokens.push(Operator::new(OpType::If, 0, token.file.clone(), token.line, token.col)),
-                "else" =>  tokens.push(Operator::new(OpType::Else, 0, token.file.clone(), token.line, token.col)),
-                "end" =>   tokens.push(Operator::new(OpType::End, 0, token.file.clone(), token.line, token.col)),
-                "while" => tokens.push(Operator::new(OpType::While, 0, token.file.clone(), token.line, token.col)),
-                "do" =>    tokens.push(Operator::new(OpType::Do, 0, token.file.clone(), token.line, token.col)),
-
-                // mem
-                "mem" =>    tokens.push(Operator::new(OpType::Mem, 0, token.file.clone(), token.line, token.col)),
-                "!8" =>    tokens.push(Operator::new(OpType::Load8, 0, token.file.clone(), token.line, token.col)),
-                "@8" =>    tokens.push(Operator::new(OpType::Store8, 0, token.file.clone(), token.line, token.col)),
-
-                "syscall0" =>    tokens.push(Operator::new(OpType::Syscall0, 0, token.file.clone(), token.line, token.col)),
-                "syscall1" =>    tokens.push(Operator::new(OpType::Syscall1, 0, token.file.clone(), token.line, token.col)),
-                "syscall2" =>    tokens.push(Operator::new(OpType::Syscall2, 0, token.file.clone(), token.line, token.col)),
-                "syscall3" =>    tokens.push(Operator::new(OpType::Syscall3, 0, token.file.clone(), token.line, token.col)),
-                "syscall4" =>    tokens.push(Operator::new(OpType::Syscall4, 0, token.file.clone(), token.line, token.col)),
-                "syscall5" =>    tokens.push(Operator::new(OpType::Syscall5, 0, token.file.clone(), token.line, token.col)),
-                "syscall6" =>    tokens.push(Operator::new(OpType::Syscall6, 0, token.file.clone(), token.line, token.col)),
-
-                
-
-
-                t => {
-                    util::logger::pos_error(pos, format!("Unknown token '{}'", t).as_str());
-                    return Err(eyre!("Unknown token"));
-                }
-            }
+            
+            //"print" => tokens.push(Operator::new(OpType::Print, 0, token.file.clone(), token.line, token.col)),
         }
 
         Ok(cross_ref(tokens)?)
+    }
+}
+
+
+fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, pos: P) -> Result<OpType>{
+    let lookup_table: HashMap<&str, OpType> = HashMap::from([
+        //stack
+        ("print", OpType::Print),
+        ("dup", OpType::Dup),
+        ("drop", OpType::Drop),
+        ("2dup", OpType::Dup2),
+        ("rot", OpType::Rot),
+        ("over", OpType::Over),
+        ("swap", OpType::Swap),
+
+        // comp and math
+        ("+", OpType::Plus),
+        ("-", OpType::Minus),
+        ("=", OpType::Equals),
+        (">", OpType::Gt),
+        ("<", OpType::Lt),
+        ("band", OpType::Band),
+        ("bor", OpType::Bor),
+        ("shr", OpType::Shr),
+        ("shl", OpType::Shl),
+        ("/", OpType::Div),
+        ("*", OpType::Mul),
+        
+        // block
+        ("if", OpType::If),
+        ("else", OpType::Else),
+        ("end", OpType::End),
+        ("while", OpType::While),
+        ("do", OpType::Do),
+
+        // mem
+        ("mem", OpType::Mem),
+        ("!8", OpType::Load8),
+        ("@8", OpType::Store8),
+
+        ("syscall0", OpType::Syscall0),
+        ("syscall1", OpType::Syscall1),
+        ("syscall2", OpType::Syscall2),
+        ("syscall3", OpType::Syscall3),
+        ("syscall4", OpType::Syscall4),
+        ("syscall5", OpType::Syscall5),
+        ("syscall6", OpType::Syscall6),
+    ]);
+
+    match lookup_table.get(s.as_str()) {
+        Some(v) => Ok(v.clone()),
+        None => {
+            util::logger::pos_error(pos, format!("Unknown word '{}'", s).as_str());
+            return Err(eyre!("Unknown word"))
+        }
     }
 }

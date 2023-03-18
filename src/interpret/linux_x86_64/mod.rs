@@ -8,7 +8,7 @@ fn stack_pop(stack: &mut Vec<u64>, pos: &(String, u32, u32)) -> Result<u64> {
     match stack.pop() {
         Some(i) => Ok(i),
         None => {
-            util::logger::pos_error(pos.clone(), "Stack underflow");
+            util::logger::pos_error(&pos.clone(), "Stack underflow");
             Err(eyre!("Stack underflow"))
         },
     }
