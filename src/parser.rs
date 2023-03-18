@@ -16,7 +16,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                 let if_ip = stack.pop().unwrap();
                 if program[if_ip as usize].typ != OpType::If {
                     util::logger::pos_error(&op.clone().pos,"'end' can only close 'if' blocks");
-                    std::process::exit(1); // idc
+                    return Err(eyre!("Bad block"));
                 }
                 
                 // let mut if_og = &mut tokens[if_ip as usize];
@@ -84,11 +84,14 @@ impl Parser {
             match token.typ {
                 TokenType::Word => {
                     let word_type = lookup_word(token.text.clone(), &pos)?;
-                    tokens.push(Operator { typ: word_type , value: 0, jmp: 0, pos: pos });
+                    tokens.push(Operator::new(word_type, 0, token.text.clone(), token.file.clone(), token.line, token.col));
                 },
                 TokenType::Int => {// negative numbers not yet implemented
-                    tokens.push(Operator::new(OpType::Push, token.text.parse::<i64>()?, token.file.clone(), token.line, token.col));
+                    tokens.push(Operator::new(OpType::PushInt, token.text.parse::<i64>()?, String::new(), token.file.clone(), token.line, token.col));
                 },
+                TokenType::String => {
+                    tokens.push(Operator::new(OpType::PushStr, 0, token.text.clone(), token.file.clone(), token.line, token.col));
+                }
             };
 
             

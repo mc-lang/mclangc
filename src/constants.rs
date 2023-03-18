@@ -3,7 +3,8 @@
 pub enum OpType {
     
     // stack
-    Push,
+    PushInt,
+    PushStr,
     Drop,
     Print,
     Dup,
@@ -54,16 +55,20 @@ pub enum OpType {
 pub struct Operator {
     pub typ: OpType,
     pub value: i64,
+    pub text: String, //? only used for OpType::PushStr
+    pub addr: i64, //? only used for OpType::PushStr
     pub jmp: i32,
     pub pos: (String, u32, u32)
 }
 
 impl Operator {
-    pub fn new(typ: OpType, value: i64, file: String, row: u32, col: u32) -> Self {
+    pub fn new(typ: OpType, value: i64, text: String, file: String, row: u32, col: u32) -> Self {
         Self {
             typ,
             value,
             jmp: 0,
+            addr: -1,
+            text,
             pos: (file, row, col)
         }
     }
@@ -79,10 +84,10 @@ pub struct Token {
     pub typ: TokenType
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     Word,
     Int,
-    // String,
+    String,
     //TODO: Add char
 }

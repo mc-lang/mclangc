@@ -17,7 +17,8 @@ fn stack_pop(stack: &mut Vec<u64>, pos: &(String, u32, u32)) -> Result<u64> {
 pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
     let mut stack: Vec<u64> = Vec::new();
     let mut ti = 0;
-    let mut mem: Vec<u8> = vec![0; crate::compile::MEM_SZ as usize];
+    let mut mem: Vec<u8> = vec![0; crate::compile::MEM_SZ as usize + crate::compile::STRING_SZ as usize];
+    let mut string_idx = 0;
     // for token in &tokens {
     //     println!("{{typ: \"{:?}\", val: {}, jmp: {}}}", token.typ, token.value, token.jmp);
 
@@ -29,8 +30,25 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
         match token.typ {
             
             // stack 
-            OpType::Push => {
+            OpType::PushInt => {
                 stack.push(token.value as u64);
+                ti += 1;
+            },
+            OpType::PushStr => {
+                if  token.addr < 0 {
+                    stack.push(token.text.len() as u64); // string len
+                    stack.push(string_idx + crate::compile::MEM_SZ as u64);
+                    
+                    for c in token.text.bytes() {
+                        mem[crate::compile::MEM_SZ as usize + string_idx as usize] = c;
+                        string_idx += 1;
+                    }
+                } else {
+                    stack.push(token.text.len() as u64); 
+                    stack.push(token.addr as u64);
+                }
+
+
                 ti += 1;
             },
             OpType::Drop => {
@@ -249,5 +267,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
             },
         }
     }
+    
+
     Ok(())
 }
