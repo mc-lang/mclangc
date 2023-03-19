@@ -60,14 +60,14 @@ pub fn linux_x86_64_compile_and_link(of_a: &PathBuf, of_o: &PathBuf, of_c: &Path
     Ok(())
 }
 
-pub fn linux_x86_64_run(_bin: &PathBuf, args: Vec<String>, quiet: bool) -> Result<()> {
+pub fn linux_x86_64_run(_bin: &PathBuf, args: Vec<String>, quiet: bool) -> Result<i32> {
 
     let bin = PathBuf::from(
         format!("./{}", _bin.to_string_lossy())
     );
 
     let mut proc = if cfg!(target_os = "windows") {
-        return Ok(());
+        return Ok(0);
     } else {
         Command::new(bin)
                 .args(&args)
@@ -84,5 +84,5 @@ pub fn linux_x86_64_run(_bin: &PathBuf, args: Vec<String>, quiet: bool) -> Resul
         logger::info(format!("{} process exited with code {}", _bin.to_string_lossy(), exit).as_str());
     }
 
-    Ok(())
+    Ok(exit.code().unwrap_or(0))
 }
