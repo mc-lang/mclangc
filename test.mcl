@@ -1,1 +1,6 @@
-"Hello world!\n\n\n\n\n\n" 1 1 syscall3 drop
+mem 0 @8
+
+while mem !8 10 < do
+    "Hello world!\n" 1 1 syscall3 drop
+    mem !8 1 + mem swap @8
+end drop

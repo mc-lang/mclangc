@@ -8,8 +8,15 @@ use super::commands::linux_x86_64_run;
 
 pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
     let mut of_c = PathBuf::from(&args.out_file);
-    let mut of_o = PathBuf::from(&args.out_file);
-    let mut of_a = PathBuf::from(&args.out_file);
+    let (mut of_o, mut of_a) = if &args.out_file == &crate::DEFAULT_OUT_FILE.to_string() {
+        let of_o = PathBuf::from("/tmp/mclang_comp.o");
+        let of_a = PathBuf::from("/tmp/mclang_comp.nasm");
+        (of_o, of_a)
+    } else {
+        let of_o = PathBuf::from(&args.out_file);
+        let of_a = PathBuf::from(&args.out_file);
+        (of_o, of_a)
+    };
     
     of_c.set_extension("");
     of_o.set_extension("o");
@@ -75,7 +82,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 ti += 1;
             },
             OpType::PushStr => {
-                writeln!(writer, "    ;; -- push str \"{}\"", token.text)?;
+                writeln!(writer, "    ;; -- push str \"{}\"", token.text.escape_default())?;
                 writeln!(writer, "    mov rax, {}", token.text.len())?;
                 writeln!(writer, "    push rax")?;
                 writeln!(writer, "    push str_{}", strings.len())?;

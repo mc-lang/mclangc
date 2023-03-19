@@ -32,7 +32,7 @@ pub mod logger {
     #![allow(dead_code)]
     use std::ops::Deref;
 
-    use crate::util::color;
+    use crate::{util::color, constants::Loc};
 
     pub fn error(msg: &str) {
         println!("{red}error{r}: {msg}", red=color::FG_RED, r=color::RESET);
@@ -51,20 +51,31 @@ pub mod logger {
     }
 
 
-    pub fn pos_error<P: Deref<Target = (String, u32, u32)>>(pos: P, msg: &str) {
-        println!("{f}:{r}:{c} {red}error{rs}: {msg}", red=color::FG_RED, rs=color::RESET, f=pos.0, r=pos.1, c=pos.2);
+    pub fn lerror<P: Deref<Target = Loc>>(loc: P, msg: &str) {
+        println!("{f}:{r}:{c} {red}error{rs}: {msg}", red=color::FG_RED, rs=color::RESET, f=loc.0, r=loc.1, c=loc.2);
     }
 
-    pub fn pos_warn<P: Deref<Target = (String, u32, u32)>>(pos: P, msg: &str) {
-        println!("{f}:{r}:{c} {yellow}warn{rs}: {msg}", yellow=color::FG_YELLOW, rs=color::RESET, f=pos.0, r=pos.1, c=pos.2);
+    pub fn lwarn<P: Deref<Target = Loc>>(loc: P, msg: &str) {
+        println!("{f}:{r}:{c} {yellow}warn{rs}: {msg}", yellow=color::FG_YELLOW, rs=color::RESET, f=loc.0, r=loc.1, c=loc.2);
     }
 
-    pub fn pos_info<P: Deref<Target = (String, u32, u32)>>(pos: P, msg: &str) {
-        println!("{f}:{r}:{c} {green}info{rs}: {msg}", green=color::FG_GREEN, rs=color::RESET, f=pos.0, r=pos.1, c=pos.2);
+    pub fn linfo<P: Deref<Target = Loc>>(loc: P, msg: &str) {
+        println!("{f}:{r}:{c} {green}info{rs}: {msg}", green=color::FG_GREEN, rs=color::RESET, f=loc.0, r=loc.1, c=loc.2);
     }
     
-    pub fn pos_note<P: Deref<Target = (String, u32, u32)>>(pos: P, msg: &str) {
-        println!("{f}:{r}:{c} {blue}note{rs}: {msg}", blue=color::FG_BLUE, rs=color::RESET, f=pos.0, r=pos.1, c=pos.2);
+    pub fn lnote<P: Deref<Target = Loc>>(loc: P, msg: &str) {
+        println!("{f}:{r}:{c} {blue}note{rs}: {msg}", blue=color::FG_BLUE, rs=color::RESET, f=loc.0, r=loc.1, c=loc.2);
+    }
+    pub mod macros {
+        #[macro_export] macro_rules! error { ($($arg:tt)*) => { $crate::util::logger::error(std::format_args!($($arg)*).to_string().as_str()) }; }
+        #[macro_export] macro_rules! warn { ($($arg:tt)*) => {  $crate::util::logger::warn( std::format_args!($($arg)*).to_string().as_str()) }; }
+        #[macro_export] macro_rules! info { ($($arg:tt)*) => {  $crate::util::logger::info( std::format_args!($($arg)*).to_string().as_str()) }; }
+        #[macro_export] macro_rules! note { ($($arg:tt)*) => {  $crate::util::logger::note( std::format_args!($($arg)*).to_string().as_str()) }; }
+        
+        #[macro_export] macro_rules! lerror { ($dst:expr, $($arg:tt)*) => { $crate::util::logger::lerror($dst, std::format_args!($($arg)*).to_string().as_str()) }; }
+        #[macro_export] macro_rules! lwarn { ($dst:expr, $($arg:tt)*) => {  $crate::util::logger::lwarn($dst, std::format_args!($($arg)*).to_string().as_str()) }; }
+        #[macro_export] macro_rules! linfo { ($dst:expr, $($arg:tt)*) => {  $crate::util::logger::linfo($dst, std::format_args!($($arg)*).to_string().as_str()) }; }
+        #[macro_export] macro_rules! lnote { ($dst:expr, $($arg:tt)*) => {  $crate::util::logger::lnote($dst, std::format_args!($($arg)*).to_string().as_str()) }; }
     }
 
 }

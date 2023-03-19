@@ -91,3 +91,5 @@ pub enum TokenType {
     String,
     //TODO: Add char
 }
+
+pub type Loc = (String, u32, u32);

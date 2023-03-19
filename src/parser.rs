@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Deref};
 
-use crate::{constants::{Operator, OpType, Token, TokenType}, util};
+use crate::{constants::{Operator, OpType, Token, TokenType}, lerror};
 use color_eyre::Result;
 use eyre::eyre;
 
@@ -15,7 +15,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
             OpType::Else => {
                 let if_ip = stack.pop().unwrap();
                 if program[if_ip as usize].typ != OpType::If {
-                    util::logger::pos_error(&op.clone().pos,"'end' can only close 'if' blocks");
+                    lerror!(&op.clone().pos,"'end' can only close 'if' blocks");
                     return Err(eyre!("Bad block"));
                 }
                 
@@ -37,8 +37,8 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                     program[ip].jmp = program[block_ip as usize].jmp;
                     program[block_ip as usize].jmp = (ip + 1) as i32;
                 } else {
-                    util::logger::pos_error(&op.clone().pos,"'end' can only close 'if' blocks");
-                    std::process::exit(1); // idc
+                    lerror!(&op.clone().pos,"'end' can only close 'if' blocks");
+                    return  Err(eyre!(""));
                 }
 
             }
@@ -55,7 +55,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
 
     }
     if stack.len() > 0 {
-        util::logger::pos_error(&program[stack.pop().expect("Empy stack") as usize].clone().pos,"Unclosed block");
+        lerror!(&program[stack.pop().expect("Empy stack") as usize].clone().pos,"Unclosed block");
         return Err(eyre!("Unclosed block"));
     }
 
@@ -151,7 +151,7 @@ fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, pos: P) -> Resu
     match lookup_table.get(s.as_str()) {
         Some(v) => Ok(v.clone()),
         None => {
-            util::logger::pos_error(pos, format!("Unknown word '{}'", s).as_str());
+            lerror!(pos, "Unknown word '{}'", s);
             return Err(eyre!("Unknown word"))
         }
     }

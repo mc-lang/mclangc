@@ -10,6 +10,8 @@ use std::fs;
 use color_eyre::Result;
 use clap::Parser;
 
+pub const DEFAULT_OUT_FILE: &str = "a.out";
+
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
@@ -18,7 +20,7 @@ pub struct Args {
     in_file: String,
 
     /// Output compiled file
-    #[arg(long, short, default_value_t=String::from("a.out"))]
+    #[arg(long, short, default_value_t=String::from(DEFAULT_OUT_FILE))]
     out_file: String,
 
     /// Compile
@@ -53,13 +55,13 @@ fn main() -> Result<()> {
     let mut parser = parser::Parser::new(tokens);
     let tokens = parser.parse()?;
     if args.compile && args.interpret {
-        util::logger::error("Cannot compile and interpret at the same time");
+        error!("Cannot compile and interpret at the same time");
     } else if args.interpret {
         interpret::linux_x86_64::run(tokens)?;
     } else if args.compile {
         compile::linux_x86_64::compile(tokens, args)?;
     } else {
-        util::logger::error("Did not choose to compile or to interpret, exiting");
+        error!("Did not choose to compile or to interpret, exiting");
     }
     Ok(())
 }

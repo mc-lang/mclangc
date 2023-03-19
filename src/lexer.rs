@@ -35,6 +35,9 @@ fn lex_line(text: String) -> Result<Vec<(u32, String, TokenType)>> {
     let mut col = find_col(text.clone(), 0, |x, _| !x.is_whitespace())?;
     let mut col_end: u32 = 0;
     while col_end < text.clone().len() as u32 {
+        if (text.len() - col as usize) < 1 {
+            return Ok(tokens);
+        }
         if &text[(col as usize)..(col + 1) as usize] == "\"" {
             col_end = find_col(text.clone(), col + 1, |x, x2| x == '"' && x2 != '\\')?;
             let t = &text[((col + 1) as usize)..(col_end as usize)];

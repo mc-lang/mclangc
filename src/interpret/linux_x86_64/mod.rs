@@ -1,4 +1,4 @@
-use crate::{constants::OpType, util::{logger, self}};
+use crate::{constants::OpType, lerror, error};
 // use crate::util::logger;
 use color_eyre::Result;
 use eyre::eyre;
@@ -8,7 +8,7 @@ fn stack_pop(stack: &mut Vec<u64>, pos: &(String, u32, u32)) -> Result<u64> {
     match stack.pop() {
         Some(i) => Ok(i),
         None => {
-            util::logger::pos_error(&pos.clone(), "Stack underflow");
+            lerror!(&pos.clone(), "Stack underflow");
             Err(eyre!("Stack underflow"))
         },
     }
@@ -245,7 +245,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
                 let ret = match rax {
                     1 => syscalls::sys_write(rax, rdi, rsi, rdx, &mem),
                     _ => {
-                        logger::error(format!("Syscall(3) #{} is not implemented", rax).as_str());
+                        error!("Syscall(3) #{} is not implemented", rax);
                         return Err(eyre!("Syscall not implemented"));
                     }
                 };

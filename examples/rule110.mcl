@@ -3,14 +3,14 @@ mem 98 + 1 @8
 0 while dup 98 < do
    0 while dup 100 < do
       dup mem + !8 if
-         dup mem + 100 + "*" @8
+         dup mem + 100 + 42 @8
       else
-         dup mem + 100 + " " @8
+         dup mem + 100 + 32 @8 
       end
       1 +
    end
    
-   mem + 100 + "\n" @8
+   mem + 100 + 10 @8
 
    101 mem 100 + 1 1 syscall3 drop
 
