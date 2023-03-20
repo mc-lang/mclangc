@@ -1,4 +1,7 @@
 
+pub const ALLOW_MACRO_REDEFINITION: bool = true;
+
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum OpType {
     
@@ -39,6 +42,7 @@ pub enum OpType {
     While,
     Do,
     Macro,
+    Include,
     
     // syscalls
     Syscall0,
@@ -49,7 +53,7 @@ pub enum OpType {
     Syscall5,
     Syscall6,
 
-    None
+    None // Used for macros and any other non built in word definitions
 
 }
 
@@ -106,6 +110,7 @@ impl OpType {
             &OpType::While => "while",
             &OpType::Do => "do",
             &OpType::Macro => "macro",
+            &OpType::Include => "include",
             &OpType::Mem => "mem",
             &OpType::Load8 => "!8",
             &OpType::Store8 => "@8",

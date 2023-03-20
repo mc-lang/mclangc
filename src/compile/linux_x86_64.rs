@@ -17,7 +17,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
         let of_a = PathBuf::from(&args.out_file);
         (of_o, of_a)
     };
-    
+
     of_c.set_extension("");
     of_o.set_extension("o");
     of_a.set_extension("nasm");
@@ -30,7 +30,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
 
     writeln!(writer, "BITS 64")?;
     writeln!(writer, "segment .text")?;
-    
+
     writeln!(writer, "print:")?;
     writeln!(writer, "    mov     r9, -3689348814741910323")?;
     writeln!(writer, "    sub     rsp, 40")?;
@@ -64,14 +64,14 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
     writeln!(writer, "    syscall")?;
     writeln!(writer, "    add     rsp, 40")?;
     writeln!(writer, "    ret")?;
-    
+
     writeln!(writer, "global _start")?;
     writeln!(writer, "_start:")?;
-    
+
     let mut ti = 0;
     while ti < tokens.len() {
         let token = &tokens[ti];
-        
+
         writeln!(writer, "addr_{}:", ti)?;
         match token.typ {
             // stack
@@ -106,7 +106,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    push rax")?;
                 writeln!(writer, "    push rax")?;
-                
+
                 ti += 1;
             },
             OpType::Dup2 => {
@@ -117,7 +117,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    push rbx")?;
                 writeln!(writer, "    push rax")?;
                 writeln!(writer, "    push rbx")?;
-                
+
                 ti += 1;
             },
 
@@ -129,7 +129,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    push rbx")?;
                 writeln!(writer, "    push rax")?;
                 writeln!(writer, "    push rcx")?;
-                
+
                 ti += 1;
             },
             OpType::Swap => {
@@ -138,7 +138,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    push rax")?;
                 writeln!(writer, "    push rbx")?;
-                
+
                 ti += 1;
             },
             OpType::Over => {
@@ -148,7 +148,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    push rbx")?;
                 writeln!(writer, "    push rax")?;
                 writeln!(writer, "    push rbx")?;
-                
+
                 ti += 1;
             },
 
@@ -279,7 +279,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 //writeln!(writer, "    push rdx")?;
                 ti += 1;
             },
-            
+
 
             // block
             OpType::If => {
@@ -312,10 +312,6 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 }
                 ti += 1;
             },
-
-            OpType::Macro => {
-                panic!();
-            }
             OpType::Syscall0 => {
                 writeln!(writer, "    ;; -- syscall0")?;
                 writeln!(writer, "    pop rax")?;
@@ -348,7 +344,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    pop rdx")?;
                 writeln!(writer, "    syscall")?;
                 writeln!(writer, "    push rax")?;
-                
+
                 ti += 1;
             },
             OpType::Syscall4 => {
@@ -387,7 +383,9 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    push rax")?;
                 ti += 1;
             },
-            OpType::None => unreachable!()
+            OpType::None => unreachable!(),
+            OpType::Macro => unreachable!(),
+            OpType::Include => unreachable!()
         }
     }
     writeln!(writer, "addr_{}:", ti)?;

@@ -223,11 +223,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
                 } else {
                     ti += 1;
                 }
-            }    
-            OpType::Macro => {
-                panic!();
             }
-
             OpType::Syscall0 => {
                 todo!();
                 // ti += 1;
@@ -269,7 +265,9 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
                 todo!();
                 // ti += 1;
             },
-            OpType::None => unreachable!()
+            OpType::None => unreachable!(),
+            OpType::Macro => unreachable!(),
+            OpType::Include => unreachable!()
         }
     }
     

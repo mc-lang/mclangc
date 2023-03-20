@@ -1,5 +1,3 @@
-macro write
-    1 1 syscall3 drop
-end
+include "io.mcl"
 
 "HEnlo world!\n" write

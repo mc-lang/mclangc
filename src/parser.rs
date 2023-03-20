@@ -134,6 +134,7 @@ pub fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, _pos: P) ->
         ("while", OpType::While),
         ("do", OpType::Do),
         ("macro", OpType::Macro),
+        ("include", OpType::Include), // technically not but it fits next to macros
 
         // mem
         ("mem", OpType::Mem),
