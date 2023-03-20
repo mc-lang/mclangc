@@ -127,8 +127,12 @@ pub fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, _pos: P) ->
         ("+", OpType::Plus),
         ("-", OpType::Minus),
         ("=", OpType::Equals),
+        ("!=", OpType::NotEquals),
         (">", OpType::Gt),
         ("<", OpType::Lt),
+        (">=", OpType::Ge),
+        ("<=", OpType::Le),
+        
         ("band", OpType::Band),
         ("bor", OpType::Bor),
         ("shr", OpType::Shr),
