@@ -4,6 +4,7 @@ mod util;
 mod compile;
 mod parser;
 mod lexer;
+mod preprocessor;
 
 use std::fs;
 

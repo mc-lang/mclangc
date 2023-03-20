@@ -1,6 +1,5 @@
-mem 0 @8
+macro write
+    1 1 syscall3 drop
+end
 
-while mem !8 10 < do
-    "Hello world!\n" 1 1 syscall3 drop
-    mem !8 1 + mem swap @8
-end drop
+"HEnlo world!\n" write

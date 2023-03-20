@@ -1,5 +1,5 @@
 
-use crate::constants::{Token, TokenType};
+use crate::{constants::{Token, TokenType}, preprocessor::preprocess};
 use color_eyre::Result;
 
 fn lex_word(s: String, tok_type: TokenType) -> (TokenType, String) {
@@ -65,7 +65,6 @@ fn lex_line(text: String) -> Result<Vec<(u32, String, TokenType)>> {
             col = find_col(text.clone(), col_end, |x, _| !x.is_whitespace())?;
         }
     }
-
     Ok(tokens)
 }
 
@@ -113,5 +112,6 @@ pub fn lex(code: String, file: &String) -> Result<Vec<Token>> {
     // for token in tokens.clone() {
     //     println!("tok: {:?}", token.text);
     // }
+    tokens = preprocess(tokens)?;
     Ok(tokens)
 }

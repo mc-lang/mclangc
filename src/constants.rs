@@ -38,6 +38,7 @@ pub enum OpType {
     End,
     While,
     Do,
+    Macro,
     
     // syscalls
     Syscall0,
@@ -48,6 +49,7 @@ pub enum OpType {
     Syscall5,
     Syscall6,
 
+    None
 
 }
 
@@ -72,8 +74,52 @@ impl Operator {
             pos: (file, row, col)
         }
     }
+    
 }
 
+impl OpType {
+    pub fn human(&self) -> String {
+        match self {
+            &OpType::PushInt => "Number",
+            &OpType::PushStr => "String",
+            &OpType::Print => "print",
+            &OpType::Dup => "dup",
+            &OpType::Drop => "drop",
+            &OpType::Dup2 => "2dup",
+            &OpType::Rot => "rot",
+            &OpType::Over => "over",
+            &OpType::Swap => "swap",
+            &OpType::Plus => "+",
+            &OpType::Minus => "-",
+            &OpType::Equals => "=",
+            &OpType::Gt => ">",
+            &OpType::Lt => "<",
+            &OpType::Band => "band",
+            &OpType::Bor => "bor",
+            &OpType::Shr => "shr",
+            &OpType::Shl => "shl",
+            &OpType::Div => "/",
+            &OpType::Mul => "*",
+            &OpType::If => "if",
+            &OpType::Else => "else",
+            &OpType::End => "end",
+            &OpType::While => "while",
+            &OpType::Do => "do",
+            &OpType::Macro => "macro",
+            &OpType::Mem => "mem",
+            &OpType::Load8 => "!8",
+            &OpType::Store8 => "@8",
+            &OpType::Syscall0 => "syscall0",
+            &OpType::Syscall1 => "syscall1",
+            &OpType::Syscall2 => "syscall2",
+            &OpType::Syscall3 => "syscall3",
+            &OpType::Syscall4 => "syscall4",
+            &OpType::Syscall5 => "syscall5",
+            &OpType::Syscall6 => "syscall6",
+            &OpType::None => "None"
+        }.to_string()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -90,6 +136,26 @@ pub enum TokenType {
     Int,
     String,
     //TODO: Add char
+}
+
+impl Token {
+    pub fn loc(&self) -> Loc {
+        (
+            self.file.clone(),
+            self.line,
+            self.col
+        )
+    }
+}
+
+impl TokenType {
+    pub fn human(&self) -> String {
+        match self {
+            TokenType::Word => "Word",
+            TokenType::Int => "Int",
+            TokenType::String => "String",
+        }.to_string()
+    }
 }
 
 pub type Loc = (String, u32, u32);

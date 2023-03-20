@@ -312,6 +312,10 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 }
                 ti += 1;
             },
+
+            OpType::Macro => {
+                panic!();
+            }
             OpType::Syscall0 => {
                 writeln!(writer, "    ;; -- syscall0")?;
                 writeln!(writer, "    pop rax")?;
@@ -383,6 +387,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
                 writeln!(writer, "    push rax")?;
                 ti += 1;
             },
+            OpType::None => unreachable!()
         }
     }
     writeln!(writer, "addr_{}:", ti)?;

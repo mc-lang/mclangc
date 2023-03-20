@@ -103,7 +103,7 @@ impl Parser {
 }
 
 
-fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, pos: P) -> Result<OpType>{
+pub fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, _pos: P) -> Result<OpType>{
     let lookup_table: HashMap<&str, OpType> = HashMap::from([
         //stack
         ("print", OpType::Print),
@@ -133,6 +133,7 @@ fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, pos: P) -> Resu
         ("end", OpType::End),
         ("while", OpType::While),
         ("do", OpType::Do),
+        ("macro", OpType::Macro),
 
         // mem
         ("mem", OpType::Mem),
@@ -151,8 +152,7 @@ fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, pos: P) -> Resu
     match lookup_table.get(s.as_str()) {
         Some(v) => Ok(v.clone()),
         None => {
-            lerror!(pos, "Unknown word '{}'", s);
-            return Err(eyre!("Unknown word"))
+            Ok(OpType::None)
         }
     }
 }
