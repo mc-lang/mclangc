@@ -140,7 +140,7 @@ pub enum TokenType {
     Word,
     Int,
     String,
-    //TODO: Add char
+    Char
 }
 
 impl Token {
@@ -159,6 +159,7 @@ impl TokenType {
             TokenType::Word => "Word",
             TokenType::Int => "Int",
             TokenType::String => "String",
+            TokenType::Char => "Char"
         }.to_string()
     }
 }

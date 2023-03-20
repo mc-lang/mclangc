@@ -11,9 +11,12 @@ fn lex_word(s: String, tok_type: TokenType) -> (TokenType, String) {
             return (TokenType::Word, s);
         },
         s if tok_type == TokenType::String => {
-            return (tok_type, s);
+            return (TokenType::String, s);
         }
-        _ => panic!()
+        s if tok_type == TokenType::Char=> {
+            return (TokenType::Char, s);
+        }
+        _ => unreachable!()
     }
 }
 
@@ -49,6 +52,22 @@ fn lex_line(text: String) -> Result<Vec<(u32, String, TokenType)>> {
                                 .replace("\\0", "\0");
             if !t.is_empty() {
                 tokens.push((col, t.to_string(), TokenType::String));
+            }
+            col = find_col(text.clone(), col_end + 1, |x, _| !x.is_whitespace())?;
+
+        } else if &text[(col as usize)..(col + 1) as usize] == "'"{
+            col_end = find_col(text.clone(), col + 1, |x, x2| x == '\'' && x2 != '\\')?;
+            let t = &text[((col + 1) as usize)..(col_end as usize)];
+            let t = t.replace("\\n", "\n")
+                                .replace("\\t", "\t")
+                                .replace("\\r", "\r")
+                                .replace("\\\'", "\'")
+                                .replace("\\\"", "\"")
+                                .replace("\\0", "\0");
+
+            
+            if !t.is_empty() {
+                tokens.push((col, t.to_string(), TokenType::Char));
             }
             col = find_col(text.clone(), col_end + 1, |x, _| !x.is_whitespace())?;
 

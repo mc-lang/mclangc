@@ -92,6 +92,15 @@ impl Parser {
                 TokenType::String => {
                     tokens.push(Operator::new(OpType::PushStr, 0, token.text.clone(), token.file.clone(), token.line, token.col));
                 }
+                TokenType::Char => {
+                    let c = token.text.clone();
+                    if c.len() != 1 {
+                        lerror!(&token.loc(), "Chars can only be of lenght 1, got {}", c.len());
+                        return Err(eyre!(""));
+                    }
+
+                    tokens.push(Operator::new(OpType::PushInt, token.text.chars().next().unwrap() as i64, String::new(), token.file.clone(), token.line, token.col));
+                }
             };
 
             

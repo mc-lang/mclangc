@@ -1,6 +1,1 @@
-include "io.mcl"
-include "util.mcl"
-
-"HEnlo world!\n" puts
-
-2 2 = "i suck at math" assert
+' ' print

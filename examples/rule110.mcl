@@ -1,5 +1,4 @@
-
-macro puts 1 1 syscall3 drop end
+include "io.mcl"
 
 macro BOARD_SIZE 100 end
 
@@ -8,14 +7,14 @@ mem BOARD_SIZE 2 - + 1 @8
 0 while dup BOARD_SIZE 2 - < do
    0 while dup BOARD_SIZE < do
       dup mem + !8 if
-         dup mem + BOARD_SIZE + 42 @8
+         dup mem + BOARD_SIZE + '*' @8
       else
-         dup mem + BOARD_SIZE + 32 @8 
+         dup mem + BOARD_SIZE + ' ' @8 
       end
       1 +
    end
    
-   mem + BOARD_SIZE + 10 @8
+   mem + BOARD_SIZE + '\n' @8
 
    BOARD_SIZE 1 + mem BOARD_SIZE + puts
 
