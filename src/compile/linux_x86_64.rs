@@ -202,7 +202,6 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
                 writeln!(writer, "    cmove rcx, rdx")?;
                 writeln!(writer, "    push rcx")?;
                 ti += 1;
-
             },
             OpType::Lt => {
                 writeln!(writer, "    ;; -- lt")?;
@@ -214,7 +213,6 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
                 writeln!(writer, "    cmovl rcx, rdx")?;
                 writeln!(writer, "    push rcx")?;
                 ti += 1;
-
             },
             OpType::Gt => {
                 writeln!(writer, "    ;; -- gt")?;
@@ -226,7 +224,39 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
                 writeln!(writer, "    cmovg rcx, rdx")?;
                 writeln!(writer, "    push rcx")?;
                 ti += 1;
-
+            },
+            OpType::NotEquals => {
+                writeln!(writer, "    ;; -- not equals")?;
+                writeln!(writer, "    mov rcx, 1")?;
+                writeln!(writer, "    mov rdx, 0")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    cmp rax, rbx")?;
+                writeln!(writer, "    cmove rcx, rdx")?;
+                writeln!(writer, "    push rcx")?;
+                ti += 1;
+            },
+            OpType::Le => {
+                writeln!(writer, "    ;; -- lt")?;
+                writeln!(writer, "    mov rcx, 0")?;
+                writeln!(writer, "    mov rdx, 1")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    cmp rax, rbx")?;
+                writeln!(writer, "    cmovle rcx, rdx")?;
+                writeln!(writer, "    push rcx")?;
+                ti += 1;
+            },
+            OpType::Ge => {
+                writeln!(writer, "    ;; -- gt")?;
+                writeln!(writer, "    mov rcx, 0")?;
+                writeln!(writer, "    mov rdx, 1")?;
+                writeln!(writer, "    pop rbx")?;
+                writeln!(writer, "    pop rax")?;
+                writeln!(writer, "    cmp rax, rbx")?;
+                writeln!(writer, "    cmovge rcx, rdx")?;
+                writeln!(writer, "    push rcx")?;
+                ti += 1;
             },
             OpType::Band => {
                 writeln!(writer, "    ;; -- band")?;
@@ -260,14 +290,14 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
                 writeln!(writer, "    push rbx")?;
                 ti += 1;
             },
-            OpType::Div => {
+            OpType::DivMod => {
                 writeln!(writer, "    ;; -- div")?;
                 writeln!(writer, "    xor rdx, rdx")?;
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    pop rax")?;
                 writeln!(writer, "    div rbx")?;
                 writeln!(writer, "    push rax")?;
-                //writeln!(writer, "    push rdx")?;
+                writeln!(writer, "    push rdx")?;
                 ti += 1;
             },
             OpType::Mul => {
@@ -276,7 +306,6 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
                 writeln!(writer, "    pop rbx")?;
                 writeln!(writer, "    mul rbx")?;
                 writeln!(writer, "    push rax")?;
-                //writeln!(writer, "    push rdx")?;
                 ti += 1;
             },
 

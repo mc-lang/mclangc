@@ -133,7 +133,7 @@ pub fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, _pos: P) ->
         ("bor", OpType::Bor),
         ("shr", OpType::Shr),
         ("shl", OpType::Shl),
-        ("/", OpType::Div),
+        ("divmod", OpType::DivMod),
         ("*", OpType::Mul),
         
         // block

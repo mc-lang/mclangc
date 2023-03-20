@@ -152,6 +152,24 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
                 stack.push((b < a) as u64);
                 ti += 1;
             },
+            OpType::NotEquals => {
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b != a) as u64);
+                ti += 1;
+            },
+            OpType::Ge => {
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b >= a) as u64);
+                ti += 1;
+            },
+            OpType::Le => {
+                let a = stack_pop(&mut stack, &pos)?;
+                let b = stack_pop(&mut stack, &pos)?;
+                stack.push((b <= a) as u64);
+                ti += 1;
+            },
 
             OpType::Band => {
                 let a = stack_pop(&mut stack, &pos)?;
@@ -181,10 +199,11 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
                 ti += 1;
             }
             
-            OpType::Div => {
+            OpType::DivMod => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
                 stack.push((b / a) as u64);
+                stack.push((b % a) as u64);
                 ti += 1;
             }
             OpType::Mul => {

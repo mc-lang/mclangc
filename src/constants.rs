@@ -22,11 +22,14 @@ pub enum OpType {
     Equals,
     Gt,
     Lt,
+    Ge,
+    Le,
+    NotEquals,
     Band, // &
     Bor, // |
     Shr, // >>
     Shl,  // <<
-    Div, // /
+    DivMod, // /
     Mul,
     
     
@@ -98,11 +101,14 @@ impl OpType {
             &OpType::Equals => "=",
             &OpType::Gt => ">",
             &OpType::Lt => "<",
+            &OpType::NotEquals => "!=",
+            &OpType::Le => "<=",
+            &OpType::Ge => ">=",
             &OpType::Band => "band",
             &OpType::Bor => "bor",
             &OpType::Shr => "shr",
             &OpType::Shl => "shl",
-            &OpType::Div => "/",
+            &OpType::DivMod => "divmod",
             &OpType::Mul => "*",
             &OpType::If => "if",
             &OpType::Else => "else",

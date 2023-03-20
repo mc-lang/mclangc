@@ -1,0 +1,5 @@
+macro NULL 0 end
+macro false 0 end
+macro true 1 end
+macro div divmod drop end
+macro mod divmod swap drop end
