@@ -44,6 +44,8 @@ fn lex_line(text: String) -> Result<Vec<(u32, String, TokenType)>> {
             let t = t.replace("\\n", "\n")
                                 .replace("\\t", "\t")
                                 .replace("\\r", "\r")
+                                .replace("\\\'", "\'")
+                                .replace("\\\"", "\"")
                                 .replace("\\0", "\0");
             if !t.is_empty() {
                 tokens.push((col, t.to_string(), TokenType::String));
@@ -100,5 +102,6 @@ pub fn lex(code: String, file: &String, args: Args, preprocessing: bool) -> Resu
     if preprocessing {
         tokens = preprocess(tokens, args)?;
     }
+
     Ok(tokens)
 }

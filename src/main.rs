@@ -72,10 +72,7 @@ fn main() -> Result<()> {
         }
     };
 
-    // for token in &tokens {
-    //     println!("(f: {}, l: {}, c: {}, t: {})", token.file, token.line, token.col, token.text);
-    // }
-
+    
     let mut parser = parser::Parser::new(tokens);
     let tokens = match parser.parse() {
         Ok(t) => t,
@@ -84,26 +81,29 @@ fn main() -> Result<()> {
             return Ok(());
         }
     };
-    if args.compile && args.interpret {
+
+    let c = if args.compile && args.interpret {
         error!("Cannot compile and interpret at the same time");
+        0
     } else if args.interpret {
         match interpret::linux_x86_64::run(tokens) {
-            Ok(_) => (),
+            Ok(c) => c,
             Err(_) => {
                 error!("Interpretation failed, exiting!");
-                return Ok(());
+                1
             }
-        };
+        }
     } else if args.compile {
         match compile::linux_x86_64::compile(tokens, args) {
-            Ok(_) => (),
+            Ok(c) => c,
             Err(_) => {
                 error!("Compilation failed, exiting!");
-                return Ok(());
+                1
             }
-        };
+        }
     } else {
         error!("Did not choose to compile or to interpret, exiting");
-    }
-    Ok(())
+        0
+    };
+    std::process::exit(c);
 }

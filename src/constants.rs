@@ -64,7 +64,7 @@ pub struct Operator {
     pub text: String, //? only used for OpType::PushStr
     pub addr: i64, //? only used for OpType::PushStr
     pub jmp: i32,
-    pub pos: (String, u32, u32)
+    pub loc: (String, u32, u32)
 }
 
 impl Operator {
@@ -75,7 +75,7 @@ impl Operator {
             jmp: 0,
             addr: -1,
             text,
-            pos: (file, row, col)
+            loc: (file, row, col)
         }
     }
     

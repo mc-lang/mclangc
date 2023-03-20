@@ -1,0 +1,42 @@
+include "linux.mcl"
+
+
+// Write to a file descriptor using the SYS_write syscall
+// args: [str_size, str_ptr, fd]
+// @arg str_size: Int
+// @arg str_ptr: Ptr
+// @arg fd: Int
+// @ret Int
+macro write
+    SYS_write syscall3
+end
+
+
+// Print a string to STDOUT
+// args: [str_size, str_ptr]
+// @arg str_size: Int
+// @arg str_ptr: Ptr
+// @ret NULL
+macro puts
+    STDOUT write drop
+end
+
+// Print a string to STDERR
+// args: [str_size, str_ptr]
+// @arg str_size: Int
+// @arg str_ptr: Ptr
+// @ret NULL
+macro eputs
+    STDOUT write drop
+end
+
+// TODO: make putc and eputc after we make local mem
+
+// Exit the program with exit_code
+// args: [exit_code]
+// @arg exit_code: Int
+// @ret NULL/NEVER
+macro exit
+    SYS_exit syscall1 drop
+end
+

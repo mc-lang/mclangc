@@ -6,7 +6,7 @@ use crate::compile::commands::linux_x86_64_compile_and_link;
 use super::commands::linux_x86_64_run;
 
 
-pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
+pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
     let mut of_c = PathBuf::from(&args.out_file);
     let (mut of_o, mut of_a) = if &args.out_file == &crate::DEFAULT_OUT_FILE.to_string() {
         let of_o = PathBuf::from("/tmp/mclang_comp.o");
@@ -405,8 +405,9 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<()>{
     writer.flush()?;
     linux_x86_64_compile_and_link(&of_a, &of_o, &of_c, args.quiet)?;
     if args.run {
-        linux_x86_64_run(&of_c, vec![], args.quiet)?;
+        let c = linux_x86_64_run(&of_c, vec![], args.quiet)?;
+        return Ok(c);
     }
 
-    Ok(())
+    Ok(0)
 }

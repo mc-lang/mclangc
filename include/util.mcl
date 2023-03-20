@@ -1,0 +1,15 @@
+
+// Assert implementation
+// args: [condition, str_len, str_ptr]
+// @arg condition: Bool
+// @arg str_len: Int
+// @arg str_ptr: Ptr
+// @ret NULL/NEVER
+macro assert
+    rot
+    if else
+    "Assert failed: \"" eputs eputs
+    "\". Exiting!\n" eputs
+    1 exit
+    end
+end

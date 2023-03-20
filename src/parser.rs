@@ -15,7 +15,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
             OpType::Else => {
                 let if_ip = stack.pop().unwrap();
                 if program[if_ip as usize].typ != OpType::If {
-                    lerror!(&op.clone().pos,"'end' can only close 'if' blocks");
+                    lerror!(&op.clone().loc,"'end' can only close 'if' blocks");
                     return Err(eyre!("Bad block"));
                 }
                 
@@ -37,7 +37,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                     program[ip].jmp = program[block_ip as usize].jmp;
                     program[block_ip as usize].jmp = (ip + 1) as i32;
                 } else {
-                    lerror!(&op.clone().pos,"'end' can only close 'if' blocks");
+                    lerror!(&op.clone().loc,"'end' can only close 'if' blocks");
                     return  Err(eyre!(""));
                 }
 
@@ -55,7 +55,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
 
     }
     if stack.len() > 0 {
-        lerror!(&program[stack.pop().expect("Empy stack") as usize].clone().pos,"Unclosed block");
+        lerror!(&program[stack.pop().expect("Empy stack") as usize].clone().loc,"Unclosed block");
         return Err(eyre!("Unclosed block"));
     }
 
@@ -83,7 +83,7 @@ impl Parser {
             let pos = (token.file.clone(), token.line, token.col);
             match token.typ {
                 TokenType::Word => {
-                    let word_type = lookup_word(token.text.clone(), &pos)?;
+                    let word_type = lookup_word(token.text.clone(), &pos);
                     tokens.push(Operator::new(word_type, 0, token.text.clone(), token.file.clone(), token.line, token.col));
                 },
                 TokenType::Int => {// negative numbers not yet implemented
@@ -103,7 +103,7 @@ impl Parser {
 }
 
 
-pub fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, _pos: P) -> Result<OpType>{
+pub fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, _pos: P) -> OpType {
     let lookup_table: HashMap<&str, OpType> = HashMap::from([
         //stack
         ("print", OpType::Print),
@@ -151,9 +151,9 @@ pub fn lookup_word<P: Deref<Target = (String, u32, u32)>>(s: String, _pos: P) ->
     ]);
 
     match lookup_table.get(s.as_str()) {
-        Some(v) => Ok(v.clone()),
+        Some(v) => v.clone(),
         None => {
-            Ok(OpType::None)
+            OpType::None
         }
     }
 }

@@ -14,7 +14,7 @@ fn stack_pop(stack: &mut Vec<u64>, pos: &(String, u32, u32)) -> Result<u64> {
     }
 }
 
-pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
+pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
     let mut stack: Vec<u64> = Vec::new();
     let mut ti = 0;
     let mut mem: Vec<u8> = vec![0; crate::compile::MEM_SZ as usize + crate::compile::STRING_SZ as usize];
@@ -25,7 +25,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
     // }
     while ti < tokens.len() {
         let token = &tokens[ti];
-        let pos = token.pos.clone();
+        let pos = token.loc.clone();
         // println!("{:?}", token.typ);
         match token.typ {
             
@@ -272,5 +272,5 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<()>{
     }
     
 
-    Ok(())
+    Ok(0)
 }
