@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::process::{Command, Stdio};
 use color_eyre::Result;
 use crate::info;
 
-pub fn linux_x86_64_compile_and_link(of_a: &PathBuf, of_o: &PathBuf, of_c: &PathBuf, quiet: bool) -> Result<()> {
+pub fn linux_x86_64_compile_and_link(of_a: &Path, of_o: &Path, of_c: &Path, quiet: bool) -> Result<()> {
     
     let nasm_args = [
         "-felf64",
@@ -23,7 +23,7 @@ pub fn linux_x86_64_compile_and_link(of_a: &PathBuf, of_o: &PathBuf, of_c: &Path
         return Ok(());
     } else {
         Command::new("nasm")
-                .args(&nasm_args)
+                .args(nasm_args)
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
                 .spawn()?
@@ -42,7 +42,7 @@ pub fn linux_x86_64_compile_and_link(of_a: &PathBuf, of_o: &PathBuf, of_c: &Path
         return Ok(());
     } else {
         Command::new("ld")
-                .args(&ld_args)
+                .args(ld_args)
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
                 .spawn()?
@@ -60,28 +60,28 @@ pub fn linux_x86_64_compile_and_link(of_a: &PathBuf, of_o: &PathBuf, of_c: &Path
     Ok(())
 }
 
-pub fn linux_x86_64_run(_bin: &PathBuf, args: Vec<String>, quiet: bool) -> Result<i32> {
+pub fn linux_x86_64_run(bin: &Path, args: &[String], quiet: bool) -> Result<i32> {
 
     let bin = PathBuf::from(
-        format!("./{}", _bin.to_string_lossy())
+        format!("./{}", bin.to_string_lossy())
     );
 
     let mut proc = if cfg!(target_os = "windows") {
         return Ok(0);
     } else {
-        Command::new(bin)
-                .args(&args)
+        Command::new(bin.clone())
+                .args(args)
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
                 .spawn()?
     };
     // println!("{}", quiet);
     if !quiet {
-        info!("running {} {}", _bin.to_string_lossy(), args.join(" "));
+        info!("running {} {}", bin.to_string_lossy(), args.join(" "));
     }
     let exit = proc.wait()?;
     if !quiet {
-        info!("{} process exited with code {}", _bin.to_string_lossy(), exit);
+        info!("{} process exited with code {}", bin.to_string_lossy(), exit);
     }
 
     Ok(exit.code().unwrap_or(0))

@@ -15,19 +15,19 @@ pub struct Macro {
     pub tokens: Vec<Token>
 }
 
-pub fn preprocess(tokens: Vec<Token>, args: Args) -> Result<Vec<Token>>{
+pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
     let mut program: Vec<Token> = Vec::new();
     let mut macros: HashMap<String, Macro> = HashMap::new();
     
-    let mut rtokens = tokens.clone();
+    let mut rtokens = tokens;
     rtokens.reverse();
-    while rtokens.len() > 0 {
+    while !rtokens.is_empty() {
         let token = rtokens.pop().unwrap();
         
-        let op_type = lookup_word(token.text.clone(), &token.loc());
+        let op_type = lookup_word(&token.text, &token.loc());
         match token.clone() {
             _ if op_type == OpType::Macro => {
-                if rtokens.len() == 0 {
+                if rtokens.is_empty(){
                     lerror!(&token.loc(), "Macro name not found, expected {} but found nothing", TokenType::Word.human());
                     return Err(eyre!(""));
                 }
@@ -37,41 +37,36 @@ pub fn preprocess(tokens: Vec<Token>, args: Args) -> Result<Vec<Token>>{
                     lerror!(&macro_name.loc(), "Bad macro name, expected {} but found {}", TokenType::Word.human(), macro_name.typ.human());
                     return Err(eyre!(""));
                 }
-                let word = lookup_word(macro_name.text.clone(), &macro_name.loc());
+                let word = lookup_word(&macro_name.text, &macro_name.loc());
                 if word != OpType::None {
                     lerror!(&macro_name.loc(), "Macro name cannot be a built in word, got '{}'", word.human());
                     return Err(eyre!(""));
                 }
 
-                if macros.get(&macro_name.text.clone()).is_some() {
-                    if crate::constants::ALLOW_MACRO_REDEFINITION {
-                        lerror!(&macro_name.loc(), "Macro redefinition is not allowed");
-                        lnote!(&macros.get(&macro_name.text.clone()).unwrap().loc, "First definition here");
-                        return Err(eyre!(""));
-                    } else {
-                        //TODO: somehow warn about redefinition of only built in macros
-                    }
+                if macros.get(&macro_name.text.clone()).is_some() && crate::constants::ALLOW_MACRO_REDEFINITION {
+                    lerror!(&macro_name.loc(), "Macro redefinition is not allowed");
+                    lnote!(&macros.get(&macro_name.text).unwrap().loc, "First definition here");
+                    return Err(eyre!(""));
                 }
 
                 let mut macr = Macro{ loc: macro_name.loc(), tokens: Vec::new() };
 
                 let mut depth = 0;
-                while rtokens.len() > 0 {
+                while !rtokens.is_empty() {
                     let t = rtokens.pop().unwrap();
-                    let typ = lookup_word(t.text.clone(), &t.loc());
+                    let typ = lookup_word(&t.text, &t.loc());
                     if typ == OpType::End && depth == 0 {
                         break;
                     } else if typ == OpType::End && depth != 0 {
                         depth -= 1;
                         macr.tokens.push(t);
+                    } else if typ == OpType::If || typ == OpType::Do {
+                        macr.tokens.push(t);
+                        depth += 1;
                     } else {
-                        if typ == OpType::If || typ == OpType::Do {
-                            macr.tokens.push(t);
-                            depth += 1;
-                        } else {
-                            macr.tokens.push(t);
-                        }
+                        macr.tokens.push(t);
                     }
+                    
                 }
 
 
@@ -81,7 +76,7 @@ pub fn preprocess(tokens: Vec<Token>, args: Args) -> Result<Vec<Token>>{
             }
 
             _ if op_type == OpType::Include => {
-                if rtokens.len() == 0 {
+                if rtokens.is_empty() {
                     lerror!(&token.loc(), "Include path not found, expected {} but found nothing", TokenType::String.human());
                     return Err(eyre!(""));
                 }
@@ -94,7 +89,7 @@ pub fn preprocess(tokens: Vec<Token>, args: Args) -> Result<Vec<Token>>{
                 }
 
                 let mut in_paths = args.include.clone();
-                in_paths.append(&mut crate::DEFAULT_INCLUDES.to_vec().clone().iter().map(|f| f.to_string()).collect::<Vec<String>>());
+                in_paths.append(&mut crate::DEFAULT_INCLUDES.to_vec().clone().iter().map(|f| (*f).to_string()).collect::<Vec<String>>());
                 
                 let mut include_code = String::new();
                 
@@ -113,7 +108,7 @@ pub fn preprocess(tokens: Vec<Token>, args: Args) -> Result<Vec<Token>>{
                     return Err(eyre!(""));
                 }
 
-                let mut code = lex(include_code, &include_path.text, args.clone(), false)?;
+                let mut code = lex(&include_code, &include_path.text, args, false)?;
                 code.reverse();
                 rtokens.append(&mut code);
 
@@ -130,7 +125,7 @@ pub fn preprocess(tokens: Vec<Token>, args: Args) -> Result<Vec<Token>>{
     let mut times = 0;
     while program.iter().map(|f| {
         if f.typ == TokenType::Word {
-            lookup_word(f.text.clone(), &f.loc())
+            lookup_word(&f.text, &f.loc())
         } else {
             OpType::PushInt // i hate myself, this is a randomly picked optype so its happy and works
         }
@@ -152,18 +147,20 @@ pub fn preprocess(tokens: Vec<Token>, args: Args) -> Result<Vec<Token>>{
 pub fn expand_macros(tokens: Vec<Token>, macros: &HashMap<String, Macro>) -> Result<Vec<Token>> {
     let mut program: Vec<Token> = Vec::new();
 
-    let mut rtokens = tokens.clone();
+    let mut rtokens = tokens;
     rtokens.reverse();
 
-    while rtokens.len() > 0 {
+    while !rtokens.is_empty() {
         let op = rtokens.pop().unwrap();
-        let op_type = lookup_word(op.text.clone(), &op.loc());
+        let op_type = lookup_word(&op.text, &op.loc());
         if op.typ == TokenType::Word {
             match op_type {
                 OpType::None => {
                     let m = macros.get(&op.text);
                     if m.is_some() {
-                        program.append(&mut m.unwrap().tokens.clone())
+                        if let Some(m) = m {
+                            program.append(&mut m.tokens.clone());
+                        }
                     } else {
                         lerror!(&op.loc(), "Unknown word '{}'", op.text.clone());
                         return Err(eyre!(""));

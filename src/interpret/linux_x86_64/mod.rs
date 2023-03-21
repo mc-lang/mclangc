@@ -1,23 +1,20 @@
-use crate::{constants::OpType, lerror, error};
+use crate::{constants::{OpType, Loc}, lerror, error};
 // use crate::util::logger;
 use color_eyre::Result;
 use eyre::eyre;
 mod syscalls;
 
-fn stack_pop(stack: &mut Vec<u64>, pos: &(String, u32, u32)) -> Result<u64> {
-    match stack.pop() {
-        Some(i) => Ok(i),
-        None => {
-            lerror!(&pos.clone(), "Stack underflow");
-            Err(eyre!("Stack underflow"))
-        },
+fn stack_pop(stack: &mut Vec<usize>, pos: &Loc) -> Result<usize> {
+    if let Some(i) = stack.pop() { Ok(i) } else {
+        lerror!(&pos.clone(), "Stack underflow");
+        Err(eyre!("Stack underflow"))
     }
 }
 
-pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
-    let mut stack: Vec<u64> = Vec::new();
+pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
+    let mut stack: Vec<usize> = Vec::new();
     let mut ti = 0;
-    let mut mem: Vec<u8> = vec![0; crate::compile::MEM_SZ as usize + crate::compile::STRING_SZ as usize];
+    let mut mem: Vec<u8> = vec![0; crate::compile::MEM_SZ + crate::compile::STRING_SZ];
     let mut string_idx = 0;
     // for token in &tokens {
     //     println!("{{typ: \"{:?}\", val: {}, jmp: {}}}", token.typ, token.value, token.jmp);
@@ -31,21 +28,23 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
             
             // stack 
             OpType::PushInt => {
-                stack.push(token.value as u64);
+                stack.push(token.value);
                 ti += 1;
             },
             OpType::PushStr => {
-                if  token.addr < 0 {
-                    stack.push(token.text.len() as u64); // string len
-                    stack.push(string_idx + crate::compile::MEM_SZ as u64);
+                if  token.addr.is_none() {
+                    stack.push(token.text.len()); // string len
+                    stack.push(string_idx + crate::compile::MEM_SZ);
                     
                     for c in token.text.bytes() {
-                        mem[crate::compile::MEM_SZ as usize + string_idx as usize] = c;
+                        mem[crate::compile::MEM_SZ + string_idx] = c;
                         string_idx += 1;
                     }
                 } else {
-                    stack.push(token.text.len() as u64); 
-                    stack.push(token.addr as u64);
+                    stack.push(token.text.len()); 
+                    if let Some(addr) = token.addr {
+                        stack.push(addr);
+                    }
                 }
 
 
@@ -109,15 +108,16 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
             }
             OpType::Load8 => {
                 let a = stack_pop(&mut stack, &pos)?;
-                let byte = mem[a as usize];
-                stack.push(byte as u64);
+                let byte = mem[a];
+                stack.push(byte as usize);
                 ti += 1;
             }
+            #[allow(clippy::cast_possible_truncation)]
             OpType::Store8 => {
                 let val = stack_pop(&mut stack, &pos)?;
                 let addr = stack_pop(&mut stack, &pos)?;
 
-                mem[addr as usize] = (val & 0xFF) as u8;
+                mem[addr] = (val & 0xFF) as u8;
                 ti += 1;
             }
 
@@ -137,79 +137,79 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
             OpType::Equals => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b == a) as u64);
+                stack.push(usize::from(b == a));
                 ti += 1;
             },
             OpType::Gt => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b > a) as u64);
+                stack.push(usize::from(b > a));
                 ti += 1;
             },
             OpType::Lt => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b < a) as u64);
+                stack.push(usize::from(b < a));
                 ti += 1;
             },
             OpType::NotEquals => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b != a) as u64);
+                stack.push(usize::from(b != a));
                 ti += 1;
             },
             OpType::Ge => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b >= a) as u64);
+                stack.push(usize::from(b >= a));
                 ti += 1;
             },
             OpType::Le => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b <= a) as u64);
+                stack.push(usize::from(b <= a));
                 ti += 1;
             },
 
             OpType::Band => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((a & b) as u64);
+                stack.push(a & b);
                 ti += 1;
             }
 
             OpType::Bor => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((a | b) as u64);
+                stack.push(a | b);
                 ti += 1;
             }
 
             OpType::Shr => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b >> a) as u64);
+                stack.push(b >> a);
                 ti += 1;
             }
 
             OpType::Shl => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b << a) as u64);
+                stack.push(b << a);
                 ti += 1;
             }
             
             OpType::DivMod => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b / a) as u64);
-                stack.push((b % a) as u64);
+                stack.push(b / a);
+                stack.push(b % a);
                 ti += 1;
             }
             OpType::Mul => {
                 let a = stack_pop(&mut stack, &pos)?;
                 let b = stack_pop(&mut stack, &pos)?;
-                stack.push((b * a) as u64);
+                stack.push(b * a);
                 ti += 1;
             }
 
@@ -219,18 +219,13 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
                 let a = stack_pop(&mut stack, &pos)?;
                 if a == 0 {
                     // println!("If({ti}) => t: {:?} j: {}", tokens[token.jmp as usize].typ, token.jmp);
-                    ti = (token.jmp) as usize;
+                    ti = token.jmp;
                 } else {
                     ti += 1;
                 }
             },
-            OpType::Else => {
-                // println!("Else({ti}) => t: {:?} j: {}", tokens[token.jmp as usize].typ, token.jmp);
-                ti = (token.jmp) as usize;
-            },
-            OpType::End => {
-                // println!("End({ti}) => t: {:?} j: {}", tokens[token.jmp as usize].typ, token.jmp);
-                ti = (token.jmp) as usize;
+            OpType::Else | OpType::End => {
+                ti = token.jmp;
             }
             OpType::While => {
                 ti += 1;
@@ -238,7 +233,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
             OpType::Do => {
                 let a = stack.pop().unwrap();
                 if a == 0 {
-                    ti = (token.jmp) as usize;
+                    ti = token.jmp;
                 } else {
                     ti += 1;
                 }
@@ -263,6 +258,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
                 // println!("yes");
                 let ret = match rax {
                     1 => syscalls::sys_write(rax, rdi, rsi, rdx, &mem),
+                    0 => 0, //? temp, so clippy doesnt complain
                     _ => {
                         error!("Syscall(3) #{} is not implemented", rax);
                         return Err(eyre!("Syscall not implemented"));
@@ -284,9 +280,7 @@ pub fn run(tokens: Vec<crate::constants::Operator>) -> Result<i32>{
                 todo!();
                 // ti += 1;
             },
-            OpType::None => unreachable!(),
-            OpType::Macro => unreachable!(),
-            OpType::Include => unreachable!()
+            OpType::None | OpType::Macro | OpType::Include => unreachable!()
         }
     }
     

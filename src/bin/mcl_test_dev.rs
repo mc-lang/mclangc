@@ -1,5 +1,5 @@
 
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::process::Stdio;
 use std::{process, fs};
 use clap::Parser;
@@ -47,10 +47,10 @@ fn run_test<P: Into<PathBuf> + std::convert::AsRef<std::ffi::OsStr>>(f_in: PathB
     let mut command = process::Command::new(compiler);
     command.stdout(Stdio::piped());
     command.stderr(Stdio::piped());
-    if !compile_mode {
-        command.arg("-sq");
-    } else {
+    if compile_mode {
         command.arg("-cqr");
+    } else {
+        command.arg("-sq");
     }
 
     command.arg("-i");
@@ -63,18 +63,18 @@ fn run_test<P: Into<PathBuf> + std::convert::AsRef<std::ffi::OsStr>>(f_in: PathB
     let out = child.wait_with_output()?;
     
     let stdout = out.stdout.iter().map(|c| {
-        char::from_u32((*c) as u32).expect("Failed to parse stdout char").to_string()
+        char::from_u32(u32::from(*c)).expect("Failed to parse stdout char").to_string()
     }).collect::<String>();
 
     let stderr = out.stderr.iter().map(|c| {
-        char::from_u32((*c) as u32).expect("Failed to parse stderr char").to_string()
+        char::from_u32(u32::from(*c)).expect("Failed to parse stderr char").to_string()
     }).collect::<String>();
 
 
     Ok(TestOutput {
-        stdout: stdout,
-        stderr: stderr,
-        stdin: stdin,
+        stdout,
+        stderr,
+        stdin,
         status: out.status.code().unwrap()
     })
 }
@@ -91,14 +91,14 @@ fn run_tests(args: Args) -> Result<()>{
 
         let intp = run_test(file.path(), &f_out, &args.compiler_path, false, String::new())?;
         let comp = run_test(file.path(), &f_out, &args.compiler_path, true, String::new())?;
-        compare_results(intp, comp, file.path())?;
+        compare_results(&intp, &comp, &file.path())?;
     }
 
     Ok(())
 }
 
 
-fn compare_results(intp: TestOutput, comp: TestOutput, f_in: PathBuf) -> Result<()> {
+fn compare_results(intp: &TestOutput, comp: &TestOutput, f_in: &Path) -> Result<()> {
 
     if intp.stdout != comp.stdout {
         println!("{b}[ {r}ERR{rs}{b} ]{rs} {f} compiled and interpreted stdout versions differ", r=color::FG_RED, rs=color::RESET, b=color::BRIGHT, f=f_in.display());

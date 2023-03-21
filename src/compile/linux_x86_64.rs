@@ -6,9 +6,9 @@ use crate::compile::commands::linux_x86_64_compile_and_link;
 use super::commands::linux_x86_64_run;
 
 
-pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
+pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     let mut of_c = PathBuf::from(&args.out_file);
-    let (mut of_o, mut of_a) = if &args.out_file == &crate::DEFAULT_OUT_FILE.to_string() {
+    let (mut of_o, mut of_a) = if args.out_file == *crate::DEFAULT_OUT_FILE {
         let of_o = PathBuf::from("/tmp/mclang_comp.o");
         let of_a = PathBuf::from("/tmp/mclang_comp.nasm");
         (of_o, of_a)
@@ -21,6 +21,8 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
     of_c.set_extension("");
     of_o.set_extension("o");
     of_a.set_extension("nasm");
+
+    
 
     let file = fs::File::create(&of_a)?;
     let mut writer = BufWriter::new(&file);
@@ -72,7 +74,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
     while ti < tokens.len() {
         let token = &tokens[ti];
 
-        writeln!(writer, "addr_{}:", ti)?;
+        writeln!(writer, "addr_{ti}:")?;
         match token.typ {
             // stack
             OpType::PushInt => {
@@ -336,7 +338,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
             }
             OpType::End => {
                 writeln!(writer, "    ;; -- end")?;
-                if ti + 1 != token.jmp as usize {
+                if ti + 1 != token.jmp {
                     writeln!(writer, "    jmp addr_{}", token.jmp)?;
                 }
                 ti += 1;
@@ -412,20 +414,18 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
                 writeln!(writer, "    push rax")?;
                 ti += 1;
             },
-            OpType::None => unreachable!(),
-            OpType::Macro => unreachable!(),
-            OpType::Include => unreachable!()
+            OpType::None | OpType::Macro | OpType::Include => unreachable!()
         }
     }
-    writeln!(writer, "addr_{}:", ti)?;
+    writeln!(writer, "addr_{ti}:")?;
     writeln!(writer, "    mov rax, 60")?;
     writeln!(writer, "    mov rdi, 0")?;
     writeln!(writer, "    syscall")?;
     writeln!(writer, "segment .data")?;
-    for s in 0..strings.len() {
-        let s_chars = strings[s].chars().map(|c| (c as u32).to_string()).collect::<Vec<String>>();
+    for (_, s) in strings.iter().enumerate() {
+        let s_chars = s.chars().map(|c| (c as u32).to_string()).collect::<Vec<String>>();
         let s_list = s_chars.join(",");
-        writeln!(writer, "    str_{}: db {} ; {}", s, s_list, strings[s].escape_default())?;
+        writeln!(writer, "    str_{}: db {} ; {}", s, s_list, s.escape_default())?;
     }
 
     writeln!(writer, "segment .bss")?;
@@ -434,7 +434,7 @@ pub fn compile(tokens: Vec<Operator>, args: Args) -> Result<i32>{
     writer.flush()?;
     linux_x86_64_compile_and_link(&of_a, &of_o, &of_c, args.quiet)?;
     if args.run {
-        let c = linux_x86_64_run(&of_c, vec![], args.quiet)?;
+        let c = linux_x86_64_run(&of_c, &[], args.quiet)?;
         return Ok(c);
     }
 

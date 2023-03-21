@@ -8,7 +8,6 @@ mod preprocessor;
 
 use std::fs;
 
-use color_eyre::Result;
 use clap::Parser;
 
 pub const DEFAULT_OUT_FILE: &str = "a.out";
@@ -54,52 +53,38 @@ pub struct Args {
 
 }
 
-fn main() -> Result<()> {
+fn main() {
     let args = Args::parse();
 
-    let code = match fs::read_to_string(&args.in_file) {
-        Ok(t) => t,
-        Err(_) => {
-            error!("Failed to read file {}, exiting!", &args.in_file);
-            return Ok(());
-        }
+    let Ok(code) = fs::read_to_string(&args.in_file) else {
+        error!("Failed to read file {}, exiting!", &args.in_file);
+        return;
+        
     };
-    let tokens = match lexer::lex(code, &args.in_file, args.clone(), true) {
-        Ok(t) => t,
-        Err(_) => {
-            error!("Lexing failed, exiting!");
-            return Ok(());
-        }
+    let Ok(tokens) = lexer::lex(&code, &args.in_file, &args, true) else {
+        error!("Lexing failed, exiting!");
+        return;
     };
 
     
     let mut parser = parser::Parser::new(tokens);
-    let tokens = match parser.parse() {
-        Ok(t) => t,
-        Err(_) => {
-            error!("Parsing failed, exiting!");
-            return Ok(());
-        }
+    let Ok(tokens) = parser.parse() else {
+        error!("Parsing failed, exiting!");
+        return;
     };
 
     let c = if args.compile && args.interpret {
         error!("Cannot compile and interpret at the same time");
         0
     } else if args.interpret {
-        match interpret::linux_x86_64::run(tokens) {
-            Ok(c) => c,
-            Err(_) => {
-                error!("Interpretation failed, exiting!");
-                1
-            }
+        if let Ok(c) = interpret::linux_x86_64::run(&tokens) { c } else {
+            error!("Interpretation failed, exiting!");
+            1
         }
     } else if args.compile {
-        match compile::linux_x86_64::compile(tokens, args) {
-            Ok(c) => c,
-            Err(_) => {
-                error!("Compilation failed, exiting!");
-                1
-            }
+        if let Ok(c) = compile::linux_x86_64::compile(&tokens, &args) { c } else {
+            error!("Compilation failed, exiting!");
+            1
         }
     } else {
         error!("Did not choose to compile or to interpret, exiting");
