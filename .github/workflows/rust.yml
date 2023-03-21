@@ -22,3 +22,5 @@ jobs:
       run: cargo test --release --verbose
     - name: Run lang tests
       run: ./target/release/mcl_test_dev -m test
+    - name: Check formatting with clippy
+      run: cargo clippy -- -W clippy::pedantic -A clippy::struct-excessive-bools -A clippy::too_many_lines -A clippy::similar_names
