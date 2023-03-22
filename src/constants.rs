@@ -3,7 +3,7 @@ pub const ALLOW_MACRO_REDEFINITION: bool = true;
 
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum OpType {
+pub enum InstructionType {
     
     // stack
     PushInt,
@@ -11,7 +11,6 @@ pub enum OpType {
     Drop,
     Print,
     Dup,
-    Dup2, // a b => a b a b
     Rot, // a b c => b c a
     Over, // a b => a b a
     Swap, // a b => b a
@@ -37,15 +36,6 @@ pub enum OpType {
     Mem,
     Load8,
     Store8,
-
-    // block
-    If,
-    Else,
-    End,
-    While,
-    Do,
-    Macro,
-    Include,
     
     // syscalls
     Syscall0,
@@ -59,9 +49,25 @@ pub enum OpType {
     None // Used for macros and any other non built in word definitions
 
 }
+#[derive(Debug, Clone, PartialEq)]
+pub enum KeywordType {
+    If,
+    Else,
+    End,
+    While,
+    Do,
+    Macro,
+    Include,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OpType {
+    Keyword(KeywordType),
+    Instruction(InstructionType)
+}
 
 #[derive(Debug, Clone)]
-pub struct Operator {
+pub struct Operator{
     pub typ: OpType,
     pub value: usize,
     pub text: String, //? only used for OpType::PushStr
@@ -87,47 +93,46 @@ impl Operator {
 impl OpType {
     pub fn human(&self) -> String {
         match *self {
-            OpType::PushInt => "Number",
-            OpType::PushStr => "String",
-            OpType::Print => "print",
-            OpType::Dup => "dup",
-            OpType::Drop => "drop",
-            OpType::Dup2 => "2dup",
-            OpType::Rot => "rot",
-            OpType::Over => "over",
-            OpType::Swap => "swap",
-            OpType::Plus => "+",
-            OpType::Minus => "-",
-            OpType::Equals => "=",
-            OpType::Gt => ">",
-            OpType::Lt => "<",
-            OpType::NotEquals => "!=",
-            OpType::Le => "<=",
-            OpType::Ge => ">=",
-            OpType::Band => "band",
-            OpType::Bor => "bor",
-            OpType::Shr => "shr",
-            OpType::Shl => "shl",
-            OpType::DivMod => "divmod",
-            OpType::Mul => "*",
-            OpType::If => "if",
-            OpType::Else => "else",
-            OpType::End => "end",
-            OpType::While => "while",
-            OpType::Do => "do",
-            OpType::Macro => "macro",
-            OpType::Include => "include",
-            OpType::Mem => "mem",
-            OpType::Load8 => "!8",
-            OpType::Store8 => "@8",
-            OpType::Syscall0 => "syscall0",
-            OpType::Syscall1 => "syscall1",
-            OpType::Syscall2 => "syscall2",
-            OpType::Syscall3 => "syscall3",
-            OpType::Syscall4 => "syscall4",
-            OpType::Syscall5 => "syscall5",
-            OpType::Syscall6 => "syscall6",
-            OpType::None => "None"
+            OpType::Instruction(InstructionType::PushInt) => "Number",
+            OpType::Instruction(InstructionType::PushStr) => "String",
+            OpType::Instruction(InstructionType::Print) => "print",
+            OpType::Instruction(InstructionType::Dup) => "dup",
+            OpType::Instruction(InstructionType::Drop) => "drop",
+            OpType::Instruction(InstructionType::Rot) => "rot",
+            OpType::Instruction(InstructionType::Over) => "over",
+            OpType::Instruction(InstructionType::Swap) => "swap",
+            OpType::Instruction(InstructionType::Plus) => "+",
+            OpType::Instruction(InstructionType::Minus) => "-",
+            OpType::Instruction(InstructionType::Equals) => "=",
+            OpType::Instruction(InstructionType::Gt) => ">",
+            OpType::Instruction(InstructionType::Lt) => "<",
+            OpType::Instruction(InstructionType::NotEquals) => "!=",
+            OpType::Instruction(InstructionType::Le) => "<=",
+            OpType::Instruction(InstructionType::Ge) => ">=",
+            OpType::Instruction(InstructionType::Band) => "band",
+            OpType::Instruction(InstructionType::Bor) => "bor",
+            OpType::Instruction(InstructionType::Shr) => "shr",
+            OpType::Instruction(InstructionType::Shl) => "shl",
+            OpType::Instruction(InstructionType::DivMod) => "divmod",
+            OpType::Instruction(InstructionType::Mul) => "*",
+            OpType::Keyword(KeywordType::If) => "if",
+            OpType::Keyword(KeywordType::Else) => "else",
+            OpType::Keyword(KeywordType::End) => "end",
+            OpType::Keyword(KeywordType::While) => "while",
+            OpType::Keyword(KeywordType::Do) => "do",
+            OpType::Keyword(KeywordType::Macro) => "macro",
+            OpType::Keyword(KeywordType::Include) => "include",
+            OpType::Instruction(InstructionType::Mem) => "mem",
+            OpType::Instruction(InstructionType::Load8) => "!8",
+            OpType::Instruction(InstructionType::Store8) => "@8",
+            OpType::Instruction(InstructionType::Syscall0) => "syscall0",
+            OpType::Instruction(InstructionType::Syscall1) => "syscall1",
+            OpType::Instruction(InstructionType::Syscall2) => "syscall2",
+            OpType::Instruction(InstructionType::Syscall3) => "syscall3",
+            OpType::Instruction(InstructionType::Syscall4) => "syscall4",
+            OpType::Instruction(InstructionType::Syscall5) => "syscall5",
+            OpType::Instruction(InstructionType::Syscall6) => "syscall6",
+            OpType::Instruction(InstructionType::None) => "None"
         }.to_string()
     }
 }

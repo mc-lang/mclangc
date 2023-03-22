@@ -1,5 +1,16 @@
 macro NULL 0 end
 macro false 0 end
 macro true 1 end
+
 macro div divmod drop end
 macro mod divmod swap drop end
+macro / div end
+macro % mod end
+
+macro 2dup over over end
+macro 2drop drop drop end
+
+macro sizeof(u64) 8 end
+macro sizeof(u32) 4 end
+macro sizeof(u16) 2 end
+macro sizeof(u8)  1 end

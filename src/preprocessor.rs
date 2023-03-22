@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use color_eyre::Result;
 use eyre::eyre;
 
-use crate::constants::{Token, Loc, OpType, TokenType};
+use crate::constants::{Token, Loc, OpType, TokenType, KeywordType, InstructionType};
 use crate::lexer::lex;
 use crate::{lerror, lnote, Args, warn};
 use crate::parser::lookup_word;
@@ -26,7 +26,7 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
         
         let op_type = lookup_word(&token.text, &token.loc());
         match token.clone() {
-            _ if op_type == OpType::Macro => {
+            _ if op_type == OpType::Keyword(KeywordType::Macro) => {
                 if rtokens.is_empty(){
                     lerror!(&token.loc(), "Macro name not found, expected {} but found nothing", TokenType::Word.human());
                     return Err(eyre!(""));
@@ -38,7 +38,7 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
                     return Err(eyre!(""));
                 }
                 let word = lookup_word(&macro_name.text, &macro_name.loc());
-                if word != OpType::None {
+                if word != OpType::Instruction(InstructionType::None) {
                     lerror!(&macro_name.loc(), "Macro name cannot be a built in word, got '{}'", word.human());
                     return Err(eyre!(""));
                 }
@@ -55,12 +55,12 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
                 while !rtokens.is_empty() {
                     let t = rtokens.pop().unwrap();
                     let typ = lookup_word(&t.text, &t.loc());
-                    if typ == OpType::End && depth == 0 {
+                    if typ == OpType::Keyword(KeywordType::End) && depth == 0 {
                         break;
-                    } else if typ == OpType::End && depth != 0 {
+                    } else if typ == OpType::Keyword(KeywordType::End) && depth != 0 {
                         depth -= 1;
                         macr.tokens.push(t);
-                    } else if typ == OpType::If || typ == OpType::Do {
+                    } else if typ == OpType::Keyword(KeywordType::If) || typ == OpType::Keyword(KeywordType::Do) {
                         macr.tokens.push(t);
                         depth += 1;
                     } else {
@@ -75,7 +75,7 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
 
             }
 
-            _ if op_type == OpType::Include => {
+            _ if op_type == OpType::Keyword(KeywordType::Include) => {
                 if rtokens.is_empty() {
                     lerror!(&token.loc(), "Include path not found, expected {} but found nothing", TokenType::String.human());
                     return Err(eyre!(""));
@@ -127,10 +127,10 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
         if f.typ == TokenType::Word {
             lookup_word(&f.text, &f.loc())
         } else {
-            OpType::PushInt // i hate myself, this is a randomly picked optype so its happy and works
+            OpType::Instruction(InstructionType::PushInt) // i hate myself, this is a randomly picked optype so its happy and works
         }
 
-    }).collect::<Vec<OpType>>().contains(&OpType::None){
+    }).collect::<Vec<OpType>>().contains(&OpType::Instruction(InstructionType::None)){
 
         if times >= 50 {
             warn!("File import depth maxed out, if the program crashes try reducing the import depth, good luck youll need it");
@@ -155,7 +155,7 @@ pub fn expand_macros(tokens: Vec<Token>, macros: &HashMap<String, Macro>) -> Res
         let op_type = lookup_word(&op.text, &op.loc());
         if op.typ == TokenType::Word {
             match op_type {
-                OpType::None => {
+                OpType::Instruction(InstructionType::None) => {
                     let m = macros.get(&op.text);
                     if m.is_some() {
                         if let Some(m) = m {

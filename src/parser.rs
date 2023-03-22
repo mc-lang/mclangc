@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::{constants::{Operator, OpType, Token, TokenType, Loc}, lerror};
+use crate::{constants::{Operator, OpType, Token, TokenType, Loc, KeywordType, InstructionType}, lerror};
 use color_eyre::Result;
 use eyre::eyre;
 
@@ -9,12 +9,13 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
     for ip in 0..program.len() {
         let op = &program.clone()[ip];
         match op.typ {
-            OpType::If | OpType::While => {
+            OpType::Keyword(KeywordType::If) | 
+            OpType::Keyword(KeywordType::While) => {
                 stack.push(ip);
             }
-            OpType::Else => {
+            OpType::Keyword(KeywordType::Else) => {
                 let if_ip = stack.pop().unwrap();
-                if program[if_ip].typ != OpType::If {
+                if program[if_ip].typ != OpType::Keyword(KeywordType::If) {
                     lerror!(&op.clone().loc,"'end' can only close 'if' blocks");
                     return Err(eyre!("Bad block"));
                 }
@@ -22,16 +23,16 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                 program[if_ip].jmp = ip + 1;
                 stack.push(ip);
             },
-            OpType::End => {
+            OpType::Keyword(KeywordType::End) => {
                 let block_ip = stack.pop().unwrap();
 
-                if program[block_ip].typ == OpType::If || 
-                   program[block_ip].typ == OpType::Else {
+                if program[block_ip].typ == OpType::Keyword(KeywordType::If) || 
+                   program[block_ip].typ == OpType::Keyword(KeywordType::Else) {
                     
                     program[block_ip].jmp = ip;
                     program[ip].jmp = ip + 1;
 
-                } else if program[block_ip].typ == OpType::Do {
+                } else if program[block_ip].typ == OpType::Keyword(KeywordType::Do) {
                     program[ip].jmp = program[block_ip].jmp;
                     program[block_ip].jmp = ip + 1;
                 } else {
@@ -40,7 +41,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                 }
 
             }
-            OpType::Do => {
+            OpType::Keyword(KeywordType::Do) => {
                 let while_ip = stack.pop().unwrap();
                 program[ip].jmp = while_ip;
                 stack.push(ip);
@@ -82,10 +83,10 @@ impl Parser {
                     tokens.push(Operator::new(word_type, 0, token.text.clone(), token.file.clone(), token.line, token.col));
                 },
                 TokenType::Int => {// negative numbers not yet implemented
-                    tokens.push(Operator::new(OpType::PushInt, token.text.parse::<usize>()?, String::new(), token.file.clone(), token.line, token.col));
+                    tokens.push(Operator::new(OpType::Instruction(InstructionType::PushInt), token.text.parse::<usize>()?, String::new(), token.file.clone(), token.line, token.col));
                 },
                 TokenType::String => {
-                    tokens.push(Operator::new(OpType::PushStr, 0, token.text.clone(), token.file.clone(), token.line, token.col));
+                    tokens.push(Operator::new(OpType::Instruction(InstructionType::PushStr), 0, token.text.clone(), token.file.clone(), token.line, token.col));
                 }
                 TokenType::Char => {
                     let c = token.text.clone();
@@ -94,7 +95,7 @@ impl Parser {
                         return Err(eyre!(""));
                     }
 
-                    tokens.push(Operator::new(OpType::PushInt, token.text.chars().next().unwrap() as usize, String::new(), token.file.clone(), token.line, token.col));
+                    tokens.push(Operator::new(OpType::Instruction(InstructionType::PushInt), token.text.chars().next().unwrap() as usize, String::new(), token.file.clone(), token.line, token.col));
                 }
             };
 
@@ -110,53 +111,52 @@ impl Parser {
 pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
     match s {
         //stack
-        "print" => OpType::Print,
-        "dup" => OpType::Dup,
-        "drop" => OpType::Drop,
-        "2dup" => OpType::Dup2,
-        "rot" => OpType::Rot,
-        "over" => OpType::Over,
-        "swap" => OpType::Swap,
+        "print" => OpType::Instruction(InstructionType::Print),
+        "dup" => OpType::Instruction(InstructionType::Dup),
+        "drop" => OpType::Instruction(InstructionType::Drop),
+        "rot" => OpType::Instruction(InstructionType::Rot),
+        "over" => OpType::Instruction(InstructionType::Over),
+        "swap" => OpType::Instruction(InstructionType::Swap),
 
         // comp and math
-        "+" => OpType::Plus,
-        "-" => OpType::Minus,
-        "=" => OpType::Equals,
-        "!=" => OpType::NotEquals,
-        ">" => OpType::Gt,
-        "<" => OpType::Lt,
-        ">=" => OpType::Ge,
-        "<=" => OpType::Le,
+        "+" => OpType::Instruction(InstructionType::Plus),
+        "-" => OpType::Instruction(InstructionType::Minus),
+        "=" => OpType::Instruction(InstructionType::Equals),
+        "!=" => OpType::Instruction(InstructionType::NotEquals),
+        ">" => OpType::Instruction(InstructionType::Gt),
+        "<" => OpType::Instruction(InstructionType::Lt),
+        ">=" => OpType::Instruction(InstructionType::Ge),
+        "<=" => OpType::Instruction(InstructionType::Le),
         
-        "band" => OpType::Band,
-        "bor" => OpType::Bor,
-        "shr" => OpType::Shr,
-        "shl" => OpType::Shl,
-        "divmod" => OpType::DivMod,
-        "*" => OpType::Mul,
+        "band" => OpType::Instruction(InstructionType::Band),
+        "bor" => OpType::Instruction(InstructionType::Bor),
+        "shr" => OpType::Instruction(InstructionType::Shr),
+        "shl" => OpType::Instruction(InstructionType::Shl),
+        "divmod" => OpType::Instruction(InstructionType::DivMod),
+        "*" => OpType::Instruction(InstructionType::Mul),
         
         // block
-        "if" => OpType::If,
-        "else" => OpType::Else,
-        "end" => OpType::End,
-        "while" => OpType::While,
-        "do" => OpType::Do,
-        "macro" => OpType::Macro,
-        "include" => OpType::Include,
+        "if" => OpType::Keyword(KeywordType::If),
+        "else" => OpType::Keyword(KeywordType::Else),
+        "end" => OpType::Keyword(KeywordType::End),
+        "while" => OpType::Keyword(KeywordType::While),
+        "do" => OpType::Keyword(KeywordType::Do),
+        "macro" => OpType::Keyword(KeywordType::Macro),
+        "include" => OpType::Keyword(KeywordType::Include),
 
         // mem
-        "mem" => OpType::Mem,
-        "!8" => OpType::Load8,
-        "@8" => OpType::Store8,
+        "mem" => OpType::Instruction(InstructionType::Mem),
+        "!8" => OpType::Instruction(InstructionType::Load8),
+        "@8" => OpType::Instruction(InstructionType::Store8),
 
-        "syscall0" => OpType::Syscall0,
-        "syscall1" => OpType::Syscall1,
-        "syscall2" => OpType::Syscall2,
-        "syscall3" => OpType::Syscall3,
-        "syscall4" => OpType::Syscall4,
-        "syscall5" => OpType::Syscall5,
-        "syscall6" => OpType::Syscall6,
-        _ => OpType::None
+        "syscall0" => OpType::Instruction(InstructionType::Syscall0),
+        "syscall1" => OpType::Instruction(InstructionType::Syscall1),
+        "syscall2" => OpType::Instruction(InstructionType::Syscall2),
+        "syscall3" => OpType::Instruction(InstructionType::Syscall3),
+        "syscall4" => OpType::Instruction(InstructionType::Syscall4),
+        "syscall5" => OpType::Instruction(InstructionType::Syscall5),
+        "syscall6" => OpType::Instruction(InstructionType::Syscall6),
+        _ => OpType::Instruction(InstructionType::None)
     }
 
 }

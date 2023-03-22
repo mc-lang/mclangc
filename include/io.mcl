@@ -1,21 +1,29 @@
-include "linux.mcl"
-
 
 // Write to a file descriptor using the SYS_write syscall
-// args: [str_size, str_ptr, fd]
-// @arg str_size: Int
-// @arg str_ptr: Ptr
-// @arg fd: Int
+// args: [buff_size, buff_ptr, fd]
+// @arg buff_size: Int - number of bytes to write
+// @arg buff_ptr: Ptr - pointer to the buffer to write
+// @arg fd: Int - file descriptor
 // @ret Int
 macro write
     SYS_write syscall3
 end
 
+// Write to a file descriptor using the SYS_write syscall
+// args: [buff_size, buff_ptr, fd]
+// @arg buff_size: Int - number of bytes to write
+// @arg buff_ptr: Ptr - pointer to the buffer to write
+// @arg fd: Int - file descriptor
+// @ret Int
+macro read
+    SYS_read syscall3
+end
+
 
 // Print a string to STDOUT
 // args: [str_size, str_ptr]
-// @arg str_size: Int
-// @arg str_ptr: Ptr
+// @arg buff_size: Int - number of bytes to write
+// @arg buff_ptr: Ptr - pointer to the buffer to write
 // @ret NULL
 macro puts
     STDOUT write drop
@@ -23,8 +31,8 @@ end
 
 // Print a string to STDERR
 // args: [str_size, str_ptr]
-// @arg str_size: Int
-// @arg str_ptr: Ptr
+// @arg buff_size: Int - number of bytes to write
+// @arg buff_ptr: Ptr - pointer to the buffer to write
 // @ret NULL
 macro eputs
     STDOUT write drop
