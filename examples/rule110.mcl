@@ -1,4 +1,4 @@
-include "io.mcl"
+include "std.mcl"
 
 macro BOARD_SIZE 100 end
 

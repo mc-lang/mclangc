@@ -1,22 +1,20 @@
 
-pub fn sys_write(sys_n: u64, fd: u64, buff: u64, count: u64, mem: &Vec<u8> ) -> u64 {
+pub fn sys_write(sys_n: usize, fd: usize, buff: usize, count: usize, mem: &Vec<u8> ) -> usize {
     let mem = (*mem).clone();
-    let buff = buff as usize;
-    let count = count as usize;
     // println!("{:?}", &mem[buff..(buff + count)]);
     // return 0 ;
     let s = &mem[buff..(buff + count)].iter().map(|i| {
-        char::from_u32((*i) as u32).unwrap_or('_').to_string()
-    }).collect::<Vec<String>>().join("");
+        char::from_u32(u32::from(*i)).unwrap_or('_').to_string()
+    }).collect::<String>();
     
     match fd {
         1 => {
-            print!("{}", s);
+            print!("{s}");
         },
         2 => {
-            eprint!("{}", s);
+            eprint!("{s}");
         },
-        _ => panic!("Unknown file {}", fd)
+        _ => panic!("Unknown file {fd}")
     };
     let _ = std::io::Write::flush(&mut std::io::stdout());
     let _ = std::io::Write::flush(&mut std::io::stderr());
