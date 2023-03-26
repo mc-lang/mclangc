@@ -1,21 +1,22 @@
 use std::path::{PathBuf, Path};
 use std::process::{Command, Stdio};
 use color_eyre::Result;
+use crate::compile::Folders;
 use crate::info;
 
-pub fn linux_x86_64_compile_and_link(of_a: &Path, of_o: &Path, of_c: &Path, quiet: bool) -> Result<()> {
+pub fn linux_x86_64_compile_and_link(folders: &Folders, quiet: bool) -> Result<()> {
     
     let nasm_args = [
         "-felf64",
-        of_a.to_str().unwrap(),
+        folders.of_a.to_str().unwrap(),
         "-o",
-        of_o.to_str().unwrap()
+        folders.of_o.to_str().unwrap()
     ];
 
     let ld_args = [
-        of_o.to_str().unwrap(),
+        folders.of_o.to_str().unwrap(),
         "-o",
-        of_c.to_str().unwrap()
+        folders.of_c.to_str().unwrap()
     ];
 
 

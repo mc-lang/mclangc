@@ -79,21 +79,3 @@ pub mod logger {
     }
 
 }
-
-// pub trait StringExtra{
-//     fn find_idx(&self, pat: char, start: u32) -> Result<u32, ()>;
-// }
-// impl StringExtra for String {
-//     fn find_idx(&self, pat: char, start: u32) -> Result<u32, ()> {
-//         let mut col = start;
-    
-//         for c in (*self).chars() {
-//             if c == pat {
-//                 return Ok(col);
-//             }
-//             col += 1;
-//         }
-//         Err(())
-    
-//     }
-// }

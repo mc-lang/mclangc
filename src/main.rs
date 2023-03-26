@@ -9,12 +9,23 @@ mod preprocessor;
 use std::fs;
 
 use clap::Parser;
+use constants::targets;
 
 pub const DEFAULT_OUT_FILE: &str = "a.out";
 pub const DEFAULT_INCLUDES: [&str;2] = [
     "./include",
     "~/.mclang/include",
 ];
+
+pub fn get_target() -> String {
+    if cfg!(windows) {
+        targets::WIN32_X86_64.to_string()
+    } else if cfg!(unix) {
+        targets::LINUX_X86_64.to_string()
+    } else {
+        unimplemented!()
+    }
+}
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -46,7 +57,10 @@ pub struct Args {
     /// Add an include directory [default: ["./include", "~/.mclang/include"]]
     #[arg(long, short='I')]
     include: Vec<String>,
-
+    
+    // what target to interpret or compile to, eg. linux_x86_64 or win32_x86_64
+    #[arg(long, short='T', default_value_t=get_target())]
+    target: String,
     
     //#[arg(long, short='F')]
     //features: Vec<String>,
@@ -82,7 +96,7 @@ fn main() {
             1
         }
     } else if args.compile {
-        if let Ok(c) = compile::linux_x86_64::compile(&tokens, &args) { c } else {
+        if let Ok(c) = compile::compile(&tokens, &args) { c } else {
             error!("Compilation failed, exiting!");
             1
         }

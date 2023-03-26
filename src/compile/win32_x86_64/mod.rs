@@ -1,30 +1,16 @@
-use std::{fs, path::PathBuf, io::{Write, BufWriter}};
+mod commands;
+use std::{fs, io::{Write, BufWriter}};
 use crate::{constants::{Operator, OpType, KeywordType}, Args};
 use color_eyre::Result;
-use crate::compile::commands::linux_x86_64_compile_and_link;
+use commands::linux_x86_64_compile_and_link;
+use commands::linux_x86_64_run;
 use crate::constants::InstructionType;
-use super::commands::linux_x86_64_run;
 
+use super::Folders;
 
-pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
-    let mut of_c = PathBuf::from(&args.out_file);
-    let (mut of_o, mut of_a) = if args.out_file == *crate::DEFAULT_OUT_FILE {
-        let of_o = PathBuf::from("/tmp/mclang_comp.o");
-        let of_a = PathBuf::from("/tmp/mclang_comp.nasm");
-        (of_o, of_a)
-    } else {
-        let of_o = PathBuf::from(&args.out_file);
-        let of_a = PathBuf::from(&args.out_file);
-        (of_o, of_a)
-    };
+pub fn compile(tokens: &[Operator], args: &Args, folders: &Folders) -> Result<i32>{
 
-    of_c.set_extension("");
-    of_o.set_extension("o");
-    of_a.set_extension("nasm");
-
-    
-
-    let file = fs::File::create(&of_a)?;
+    let file = fs::File::create(&folders.of_a)?;
     let mut writer = BufWriter::new(&file);
 
     // println!("{}", tokens.len());
@@ -421,9 +407,9 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     writeln!(writer, "mem: resb {}", crate::compile::MEM_SZ)?;
 
     writer.flush()?;
-    linux_x86_64_compile_and_link(&of_a, &of_o, &of_c, args.quiet)?;
+    linux_x86_64_compile_and_link(folders, args.quiet)?;
     if args.run {
-        let c = linux_x86_64_run(&of_c, &[], args.quiet)?;
+        let c = linux_x86_64_run(&folders.of_c, &[], args.quiet)?;
         return Ok(c);
     }
 
