@@ -61,9 +61,19 @@ pub enum KeywordType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum PreprocessorType {
+    IfDefined,
+    IfNotDefined,
+    Else,
+    EndIf,
+    Define
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum OpType {
     Keyword(KeywordType),
-    Instruction(InstructionType)
+    Instruction(InstructionType),
+    Preprocessor(PreprocessorType)
 }
 
 #[derive(Debug, Clone)]
@@ -132,7 +142,12 @@ impl OpType {
             OpType::Instruction(InstructionType::Syscall4) => "syscall4",
             OpType::Instruction(InstructionType::Syscall5) => "syscall5",
             OpType::Instruction(InstructionType::Syscall6) => "syscall6",
-            OpType::Instruction(InstructionType::None) => "None"
+            OpType::Instruction(InstructionType::None) => "None",
+            OpType::Preprocessor(PreprocessorType::IfDefined) => "#ifdef",
+            OpType::Preprocessor(PreprocessorType::IfNotDefined) => "#ifndef",
+            OpType::Preprocessor(PreprocessorType::Else) => "#else",
+            OpType::Preprocessor(PreprocessorType::EndIf) => "#endif",
+            OpType::Preprocessor(PreprocessorType::Define) => "#define",
         }.to_string()
     }
 }

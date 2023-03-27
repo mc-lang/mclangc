@@ -4,10 +4,21 @@ use std::path::PathBuf;
 use color_eyre::Result;
 use eyre::eyre;
 
-use crate::constants::{Token, Loc, OpType, TokenType, KeywordType, InstructionType};
+use crate::constants::{Token, Loc, OpType, TokenType, KeywordType, InstructionType, PreprocessorType};
 use crate::lexer::lex;
 use crate::{lerror, lnote, Args, warn};
 use crate::parser::lookup_word;
+
+fn get_predefined_basic_macros(args: &Args) -> Vec<String> {
+    let mut a: Vec<String> = Vec::new();
+    if args.target.as_str() == crate::constants::targets::WIN32_X86_64 {
+        a.push("__win32__".to_string());
+    } else 
+    if args.target.as_str() == crate::constants::targets::LINUX_X86_64 {
+        a.push("__linux__".to_string());
+    }
+    a
+}
 
 #[derive(Debug)]
 pub struct Macro {
@@ -18,7 +29,11 @@ pub struct Macro {
 pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
     let mut program: Vec<Token> = Vec::new();
     let mut macros: HashMap<String, Macro> = HashMap::new();
-    
+    let mut basic_macros: Vec<String> = get_predefined_basic_macros(args);
+
+    //* predefined basic macros
+
+
     let mut rtokens = tokens;
     rtokens.reverse();
     while !rtokens.is_empty() {
@@ -71,8 +86,6 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
 
 
                 macros.insert(macro_name.text, macr);
-
-
             }
 
             _ if op_type == OpType::Keyword(KeywordType::Include) => {
@@ -114,6 +127,141 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
 
 
             }
+           
+            _ if op_type == OpType::Preprocessor(PreprocessorType::Define) => {
+                if rtokens.is_empty(){
+                    lerror!(&token.loc(), "Basic macro contents not found, expected {} but found nothing", TokenType::Word.human());
+                    return Err(eyre!(""));
+                }
+
+                let basic_macro_name = rtokens.pop().unwrap();
+
+                if basic_macro_name.typ != TokenType::Word {
+                    lerror!(&basic_macro_name.loc(), "Bad basic macro contents, expected {} but found {}", TokenType::Word.human(), basic_macro_name.typ.human());
+                    return Err(eyre!(""));
+                }
+
+                let word = lookup_word(&basic_macro_name.text, &basic_macro_name.loc());
+                if word != OpType::Instruction(InstructionType::None) {
+                    lerror!(&basic_macro_name.loc(), "Basic macro contents cannot be a built in word, got '{}'", word.human());
+                    return Err(eyre!(""));
+                }
+
+                basic_macros.push(basic_macro_name.text);
+            }
+            _ if op_type == OpType::Preprocessor(PreprocessorType::IfDefined) => {
+                if rtokens.is_empty(){
+                    lerror!(&token.loc(), "Basic macro contents not found, expected {} but found nothing", TokenType::Word.human());
+                    return Err(eyre!(""));
+                }
+
+                let basic_macro_name = rtokens.pop().unwrap();
+
+                let exists = basic_macros.contains(&basic_macro_name.text);
+
+                #[allow(unused_assignments)]
+                let mut skip = false;
+                let mut skip_this = false;
+                let mut els = false;
+                skip = if !exists { true } else { false };
+                while !rtokens.is_empty() {
+                    let token = rtokens.pop().unwrap();
+                    let op_typ = lookup_word(&token.text, &token.loc());
+                    if exists {
+                        if op_typ == OpType::Preprocessor(PreprocessorType::Else) {
+                            if els {
+                                todo!();
+                            }
+                            els = true;
+                            skip = true;
+                        }
+                    } else {
+                        if op_typ == OpType::Preprocessor(PreprocessorType::Else) {
+                            if els {
+                                todo!();
+                            }
+                            els = true;
+                            skip = false;
+                            skip_this = true;
+                        }
+                    }
+
+                    if op_typ == OpType::Preprocessor(PreprocessorType::EndIf) {
+                        break;
+                    }
+
+                    if !skip {
+                        #[allow(unused_assignments)]
+                        if skip_this {
+                            skip_this = false;
+                        } else {
+                            program.push(token);
+                        }
+                    }
+
+                }
+
+            },
+
+            _ if op_type == OpType::Preprocessor(PreprocessorType::IfNotDefined) => {
+                if rtokens.is_empty(){
+                    lerror!(&token.loc(), "Basic macro contents not found, expected {} but found nothing", TokenType::Word.human());
+                    return Err(eyre!(""));
+                }
+
+                let basic_macro_name = rtokens.pop().unwrap();
+
+                let exists = basic_macros.contains(&basic_macro_name.text);
+
+                #[allow(unused_assignments)]
+                let mut skip = false;
+                let mut skip_this = false;
+                let mut els = false;
+                skip = if exists { true } else { false };
+                while !rtokens.is_empty() {
+                    let token = rtokens.pop().unwrap();
+                    let op_typ = lookup_word(&token.text, &token.loc());
+                    if !exists {
+                        if op_typ == OpType::Preprocessor(PreprocessorType::Else) {
+                            if els {
+                                todo!();
+                            }
+                            els = true;
+                            skip = true;
+                        }
+                    } else {
+                        if op_typ == OpType::Preprocessor(PreprocessorType::Else) {
+                            if els {
+                                todo!();
+                            }
+                            els = true;
+                            skip = false;
+                            skip_this = true;
+                        }
+                    }
+
+                    if op_typ == OpType::Preprocessor(PreprocessorType::EndIf) {
+                        break;
+                    }
+
+                    if !skip {
+                        #[allow(unused_assignments)]
+                        if skip_this {
+                            skip_this = false;
+                        } else {
+                            program.push(token);
+                        }
+                    }
+
+                }
+
+
+            },
+            _ if op_type == OpType::Preprocessor(PreprocessorType::Else) || 
+                op_type == OpType::Preprocessor(PreprocessorType::EndIf) => {
+
+                unreachable!()
+            },
             _ => {
                 program.push(token);
             }

@@ -1,1 +1,3 @@
-' ' print
+#ifdef __win32__
+    69
+#endif

@@ -7,7 +7,7 @@ use crate::info;
 pub fn linux_x86_64_compile_and_link(folders: &Folders, quiet: bool) -> Result<()> {
     
     let nasm_args = [
-        "-felf64",
+        "-fwin32",
         folders.of_a.to_str().unwrap(),
         "-o",
         folders.of_o.to_str().unwrap()
@@ -16,7 +16,11 @@ pub fn linux_x86_64_compile_and_link(folders: &Folders, quiet: bool) -> Result<(
     let ld_args = [
         folders.of_o.to_str().unwrap(),
         "-o",
-        folders.of_c.to_str().unwrap()
+        folders.of_c.to_str().unwrap(),
+        "-L",
+        "C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0\\Lib",
+        "-l", 
+        "kernel32"
     ];
 
 

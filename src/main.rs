@@ -7,9 +7,12 @@ mod lexer;
 mod preprocessor;
 
 use std::fs;
-
 use clap::Parser;
 use constants::targets;
+
+/*
+    TODO: add simple macro support on vscode syntax highlighting
+ */
 
 pub const DEFAULT_OUT_FILE: &str = "a.out";
 pub const DEFAULT_INCLUDES: [&str;2] = [

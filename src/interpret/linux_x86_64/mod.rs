@@ -272,7 +272,10 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                 todo!();
                 // ti += 1;
             },
-            OpType::Instruction(InstructionType::None) | OpType::Keyword(KeywordType::Macro) | OpType::Keyword(KeywordType::Include) => unreachable!()
+            OpType::Instruction(InstructionType::None) |
+            OpType::Keyword(KeywordType::Macro) |
+            OpType::Keyword(KeywordType::Include) |
+            OpType::Preprocessor(_) => unreachable!()
         }
     }
     

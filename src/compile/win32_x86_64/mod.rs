@@ -9,7 +9,6 @@ use crate::constants::InstructionType;
 use super::Folders;
 
 pub fn compile(tokens: &[Operator], args: &Args, folders: &Folders) -> Result<i32>{
-
     let file = fs::File::create(&folders.of_a)?;
     let mut writer = BufWriter::new(&file);
 
@@ -389,7 +388,10 @@ pub fn compile(tokens: &[Operator], args: &Args, folders: &Folders) -> Result<i3
                 writeln!(writer, "    push rax")?;
                 ti += 1;
             },
-            OpType::Instruction(InstructionType::None) | OpType::Keyword(KeywordType::Macro) | OpType::Keyword(KeywordType::Include) => unreachable!()
+            OpType::Instruction(InstructionType::None) |
+            OpType::Keyword(KeywordType::Macro) |
+            OpType::Keyword(KeywordType::Include) |
+            OpType::Preprocessor(_) => unreachable!()
         }
     }
     writeln!(writer, "addr_{ti}:")?;

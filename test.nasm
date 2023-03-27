@@ -36,14 +36,10 @@ print:
 global _start
 _start:
 addr_0:
-    ;; -- push int 32
-    mov rax, 32
+    ;; -- push int 69
+    mov rax, 69
     push rax
 addr_1:
-    ;; -- print
-    pop rdi
-    call print
-addr_2:
     mov rax, 60
     mov rdi, 0
     syscall

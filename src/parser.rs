@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::{constants::{Operator, OpType, Token, TokenType, Loc, KeywordType, InstructionType}, lerror};
+use crate::{constants::{Operator, OpType, Token, TokenType, Loc, KeywordType, InstructionType, PreprocessorType}, lerror};
 use color_eyre::Result;
 use eyre::eyre;
 
@@ -156,6 +156,12 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "syscall4" => OpType::Instruction(InstructionType::Syscall4),
         "syscall5" => OpType::Instruction(InstructionType::Syscall5),
         "syscall6" => OpType::Instruction(InstructionType::Syscall6),
+
+        "#ifdef" => OpType::Preprocessor(PreprocessorType::IfDefined),
+        "#ifndef" => OpType::Preprocessor(PreprocessorType::IfNotDefined),
+        "#else" => OpType::Preprocessor(PreprocessorType::Else),
+        "#endif" => OpType::Preprocessor(PreprocessorType::EndIf),
+        "#define" => OpType::Preprocessor(PreprocessorType::Define),
         _ => OpType::Instruction(InstructionType::None)
     }
 
