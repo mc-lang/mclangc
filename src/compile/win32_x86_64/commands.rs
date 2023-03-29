@@ -4,7 +4,7 @@ use color_eyre::Result;
 use crate::compile::Folders;
 use crate::info;
 
-pub fn linux_x86_64_compile_and_link(folders: &Folders, quiet: bool) -> Result<()> {
+pub fn cmpile_and_link(folders: &Folders, quiet: bool) -> Result<()> {
     
     let nasm_args = [
         "-fwin32",
@@ -17,14 +17,12 @@ pub fn linux_x86_64_compile_and_link(folders: &Folders, quiet: bool) -> Result<(
         folders.of_o.to_str().unwrap(),
         "-o",
         folders.of_c.to_str().unwrap(),
-        "-L",
-        "C:\\Program Files\\Microsoft SDKs\\Windows\\v6.0\\Lib",
-        "-l", 
-        "kernel32"
+        "-nostdlib", "-nostartfiles",
+        "-lC:\\Users\\gvida\\@Projects\\rust\\mclang2\\libkernel32.a",
     ];
 
 
-    let mut proc = if cfg!(target_os = "windows") {
+    let mut proc = if !cfg!(target_os = "windows") {
         return Ok(());
     } else {
         Command::new("nasm")
@@ -43,21 +41,21 @@ pub fn linux_x86_64_compile_and_link(folders: &Folders, quiet: bool) -> Result<(
     }
 
 
-    let mut proc2 = if cfg!(target_os = "windows") {
+    let mut proc2 = if !cfg!(target_os = "windows") {
         return Ok(());
     } else {
-        Command::new("ld")
+        Command::new("gcc")
                 .args(ld_args)
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
                 .spawn()?
     };
     if !quiet {
-        info!("running 'ld {}'", ld_args.join(" "));
+        info!("running 'gcc {}'", ld_args.join(" "));
     }
     let exit2 = proc2.wait()?;
     if !quiet {
-        info!("ld process exited with code {}", exit2);
+        info!("gcc process exited with code {}", exit2);
     }
     
 
@@ -65,13 +63,13 @@ pub fn linux_x86_64_compile_and_link(folders: &Folders, quiet: bool) -> Result<(
     Ok(())
 }
 
-pub fn linux_x86_64_run(bin: &Path, args: &[String], quiet: bool) -> Result<i32> {
+pub fn run(bin: &Path, args: &[String], quiet: bool) -> Result<i32> {
 
     let bin = PathBuf::from(
         format!("./{}", bin.to_string_lossy())
     );
 
-    let mut proc = if cfg!(target_os = "windows") {
+    let mut proc = if !cfg!(target_os = "windows") {
         return Ok(0);
     } else {
         Command::new(bin.clone())

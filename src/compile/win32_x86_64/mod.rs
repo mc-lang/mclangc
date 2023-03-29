@@ -2,8 +2,8 @@ mod commands;
 use std::{fs, io::{Write, BufWriter}};
 use crate::{constants::{Operator, OpType, KeywordType}, Args};
 use color_eyre::Result;
-use commands::linux_x86_64_compile_and_link;
-use commands::linux_x86_64_run;
+use commands::cmpile_and_link;
+use commands::run;
 use crate::constants::InstructionType;
 
 use super::Folders;
@@ -17,6 +17,10 @@ pub fn compile(tokens: &[Operator], args: &Args, folders: &Folders) -> Result<i3
 
     writeln!(writer, "BITS 64")?;
     writeln!(writer, "segment .text")?;
+
+    writeln!(writer, "extern WriteConsoleA")?;
+    writeln!(writer, "extern GetStdHandle")?;
+    writeln!(writer, "extern ExitProcess")?;
 
     writeln!(writer, "print:")?;
     writeln!(writer, "    mov     r9, -3689348814741910323")?;
@@ -47,13 +51,28 @@ pub fn compile(tokens: &[Operator], args: &Args, folders: &Folders) -> Result<i3
     writeln!(writer, "    xor     eax, eax")?;
     writeln!(writer, "    lea     rsi, [rsp+32+rdx]")?;
     writeln!(writer, "    mov     rdx, r8")?;
-    writeln!(writer, "    mov     rax, 1")?;
-    writeln!(writer, "    syscall")?;
-    writeln!(writer, "    add     rsp, 40")?;
+    // 8 bytes of temporary storage for `bytes`.
+    // allocate 32 bytes of stack for shadow space.
+    // 8 bytes for the 5th parameter of WriteConsole.
+    // An additional 8 bytes for padding to make RSP 16 byte aligned.
+    writeln!(writer, "    sub rsp, 8+8+32")?;
+
+    // get std handle
+    writeln!(writer, "    mov ecx, -11")?;
+    writeln!(writer, "    call GetStdHandle")?;
+    writeln!(writer, "    mov rcx, rax")?; // handle
+    writeln!(writer, "    mov r8,  rdx")?; // text len
+    writeln!(writer, "    mov rdx, rsi")?; // text
+    writeln!(writer, "    lea r9,  [rsp-16]")?; // Address for `bytes`
+    // RSP-17 through RSP-48 are the 32 bytes of shadow space
+    writeln!(writer, "    mov qword [rsp-56], 0")?; // First stack parameter of WriteConsoleA function
+    writeln!(writer, "    add rsp, 8+8+32+40")?;
+    writeln!(writer, "    call WriteConsoleA")?;
     writeln!(writer, "    ret")?;
 
     writeln!(writer, "global _start")?;
     writeln!(writer, "_start:")?;
+    writeln!(writer, "sub rsp, 8")?; //At _start the stack is 8 bytes misaligned because there is a return address to the MSVCRT runtime library on the stack.
 
     let mut ti = 0;
     while ti < tokens.len() {
@@ -395,9 +414,8 @@ pub fn compile(tokens: &[Operator], args: &Args, folders: &Folders) -> Result<i3
         }
     }
     writeln!(writer, "addr_{ti}:")?;
-    writeln!(writer, "    mov rax, 60")?;
-    writeln!(writer, "    mov rdi, 0")?;
-    writeln!(writer, "    syscall")?;
+    writeln!(writer, "    mov     rcx, 0")?;
+    writeln!(writer, "    call    ExitProcess")?;
     writeln!(writer, "segment .data")?;
     for (_, s) in strings.iter().enumerate() {
         let s_chars = s.chars().map(|c| (c as u32).to_string()).collect::<Vec<String>>();
@@ -409,9 +427,9 @@ pub fn compile(tokens: &[Operator], args: &Args, folders: &Folders) -> Result<i3
     writeln!(writer, "mem: resb {}", crate::compile::MEM_SZ)?;
 
     writer.flush()?;
-    linux_x86_64_compile_and_link(folders, args.quiet)?;
+    cmpile_and_link(folders, args.quiet)?;
     if args.run {
-        let c = linux_x86_64_run(&folders.of_c, &[], args.quiet)?;
+        let c = run(&folders.of_c, &[], args.quiet)?;
         return Ok(c);
     }
 

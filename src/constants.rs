@@ -191,9 +191,16 @@ impl TokenType {
 }
 
 pub type Loc = (String, usize, usize);
-
-
 pub mod targets {
     pub const LINUX_X86_64: &'static str = "linux_x86_64";
     pub const WIN32_X86_64: &'static str = "win32_x86_64";
+}
+
+pub fn get_win32_syscall(n: usize) {
+    match n {
+        
+        _ => panic!("Unknown syscall {n}")
+    }
+
+
 }
