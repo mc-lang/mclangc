@@ -156,6 +156,9 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "syscall4" => OpType::Instruction(InstructionType::Syscall4),
         "syscall5" => OpType::Instruction(InstructionType::Syscall5),
         "syscall6" => OpType::Instruction(InstructionType::Syscall6),
+        "cast(bool" => OpType::Instruction(InstructionType::CastBool),
+        "cast(ptr)" => OpType::Instruction(InstructionType::CastPtr),
+        "cast(int)" => OpType::Instruction(InstructionType::CastInt),
         _ => OpType::Instruction(InstructionType::None)
     }
 

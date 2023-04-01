@@ -75,335 +75,351 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
         let token = &tokens[ti];
 
         writeln!(writer, "addr_{ti}:")?;
-        match token.typ {
+        match token.typ.clone() {
             // stack
-            OpType::Instruction(InstructionType::PushInt) => {
-                writeln!(writer, "    ;; -- push int {}", token.value)?;
-                writeln!(writer, "    mov rax, {}", token.value)?;
-                writeln!(writer, "    push rax")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::PushStr) => {
-                writeln!(writer, "    ;; -- push str \"{}\"", token.text.escape_default())?;
-                writeln!(writer, "    mov rax, {}", token.text.len())?;
-                writeln!(writer, "    push rax")?;
-                writeln!(writer, "    push str_{}", strings.len())?;
-                strings.push(token.text.clone());
-                ti += 1;
-            }
-            OpType::Instruction(InstructionType::Drop) => {
-                writeln!(writer, "    ;; -- drop")?;
-                writeln!(writer, "    pop rax")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Print) => {
-                writeln!(writer, "    ;; -- print")?;
-                writeln!(writer, "    pop rdi")?;
-                writeln!(writer, "    call print")?;
-                ti += 1;
-            },
 
-            OpType::Instruction(InstructionType::Dup) => {
-                writeln!(writer, "    ;; -- dup")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    push rax")?;
-                writeln!(writer, "    push rax")?;
-
-                ti += 1;
-            },
-
-            OpType::Instruction(InstructionType::Rot) => {
-                writeln!(writer, "    ;; -- rot")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    pop rcx")?;
-                writeln!(writer, "    push rbx")?;
-                writeln!(writer, "    push rax")?;
-                writeln!(writer, "    push rcx")?;
-
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Swap) => {
-                writeln!(writer, "    ;; -- swap")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    push rax")?;
-                writeln!(writer, "    push rbx")?;
-
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Over) => {
-                writeln!(writer, "    ;; -- over")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    push rbx")?;
-                writeln!(writer, "    push rax")?;
-                writeln!(writer, "    push rbx")?;
-
-                ti += 1;
-            },
-
-            //mem
-            OpType::Instruction(InstructionType::Mem) => {
-                writeln!(writer, "    ;; -- mem")?;
-                writeln!(writer, "    push mem")?;
-                ti += 1;
-            }
-            OpType::Instruction(InstructionType::Load8) => {
-                writeln!(writer, "    ;; -- load")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    xor rbx, rbx")?;
-                writeln!(writer, "    mov bl, [rax]")?;
-                writeln!(writer, "    push rbx")?;
-                ti += 1;
-            }
-
-            OpType::Instruction(InstructionType::Store8) => {
-                writeln!(writer, "    ;; -- store")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    mov [rax], bl")?;
-                ti += 1;
-            }
-
-            // math
-            OpType::Instruction(InstructionType::Plus) => {
-                writeln!(writer, "    ;; -- plus")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    add rax, rbx")?;
-                writeln!(writer, "    push rax")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Minus) => {
-                writeln!(writer, "    ;; -- minus")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    sub rbx, rax")?;
-                writeln!(writer, "    push rbx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Equals) => {
-                writeln!(writer, "    ;; -- equals")?;
-                writeln!(writer, "    mov rcx, 0")?;
-                writeln!(writer, "    mov rdx, 1")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    cmp rax, rbx")?;
-                writeln!(writer, "    cmove rcx, rdx")?;
-                writeln!(writer, "    push rcx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Lt) => {
-                writeln!(writer, "    ;; -- lt")?;
-                writeln!(writer, "    mov rcx, 0")?;
-                writeln!(writer, "    mov rdx, 1")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    cmp rax, rbx")?;
-                writeln!(writer, "    cmovl rcx, rdx")?;
-                writeln!(writer, "    push rcx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Gt) => {
-                writeln!(writer, "    ;; -- gt")?;
-                writeln!(writer, "    mov rcx, 0")?;
-                writeln!(writer, "    mov rdx, 1")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    cmp rax, rbx")?;
-                writeln!(writer, "    cmovg rcx, rdx")?;
-                writeln!(writer, "    push rcx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::NotEquals) => {
-                writeln!(writer, "    ;; -- not equals")?;
-                writeln!(writer, "    mov rcx, 1")?;
-                writeln!(writer, "    mov rdx, 0")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    cmp rax, rbx")?;
-                writeln!(writer, "    cmove rcx, rdx")?;
-                writeln!(writer, "    push rcx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Le) => {
-                writeln!(writer, "    ;; -- lt")?;
-                writeln!(writer, "    mov rcx, 0")?;
-                writeln!(writer, "    mov rdx, 1")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    cmp rax, rbx")?;
-                writeln!(writer, "    cmovle rcx, rdx")?;
-                writeln!(writer, "    push rcx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Ge) => {
-                writeln!(writer, "    ;; -- gt")?;
-                writeln!(writer, "    mov rcx, 0")?;
-                writeln!(writer, "    mov rdx, 1")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    cmp rax, rbx")?;
-                writeln!(writer, "    cmovge rcx, rdx")?;
-                writeln!(writer, "    push rcx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Band) => {
-                writeln!(writer, "    ;; -- band")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    and rbx, rax")?;
-                writeln!(writer, "    push rbx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Bor) => {
-                writeln!(writer, "    ;; -- bor")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    or rbx, rax")?;
-                writeln!(writer, "    push rbx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Shr) => {
-                writeln!(writer, "    ;; -- shr")?;
-                writeln!(writer, "    pop rcx")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    shr rbx, cl")?;
-                writeln!(writer, "    push rbx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Shl) => {
-                writeln!(writer, "    ;; -- shl")?;
-                writeln!(writer, "    pop rcx")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    shl rbx, cl")?;
-                writeln!(writer, "    push rbx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::DivMod) => {
-                writeln!(writer, "    ;; -- div")?;
-                writeln!(writer, "    xor rdx, rdx")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    div rbx")?;
-                writeln!(writer, "    push rax")?;
-                writeln!(writer, "    push rdx")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Mul) => {
-                writeln!(writer, "    ;; -- mul")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rbx")?;
-                writeln!(writer, "    mul rbx")?;
-                writeln!(writer, "    push rax")?;
-                ti += 1;
-            },
-
-
-            // block
-            OpType::Keyword(KeywordType::If) => {
-                writeln!(writer, "    ;; -- if")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    test rax, rax")?;
-                writeln!(writer, "    jz addr_{}", token.jmp)?;
-                ti += 1;
-            },
-            OpType::Keyword(KeywordType::Else) => {
-                writeln!(writer, "    ;; -- else")?;
-                writeln!(writer, "    jmp addr_{}", token.jmp)?;
-                ti += 1;
-            },
-            OpType::Keyword(KeywordType::While) => {
-                writeln!(writer, "    ;; -- while")?;
-                ti += 1;
-            }
-            OpType::Keyword(KeywordType::Do) => {
-                writeln!(writer, "    ;; -- do")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    test rax, rax")?;
-                writeln!(writer, "    jz addr_{}", token.jmp)?;
-                ti += 1;
-            }
-            OpType::Keyword(KeywordType::End) => {
-                writeln!(writer, "    ;; -- end")?;
-                if ti + 1 != token.jmp {
-                    writeln!(writer, "    jmp addr_{}", token.jmp)?;
+            OpType::Instruction(instruction) => {
+                match instruction {
+                    InstructionType::PushInt => {
+                        writeln!(writer, "    ;; -- push int {}", token.value)?;
+                        writeln!(writer, "    mov rax, {}", token.value)?;
+                        writeln!(writer, "    push rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::PushStr => {
+                        writeln!(writer, "    ;; -- push str \"{}\"", token.text.escape_default())?;
+                        writeln!(writer, "    mov rax, {}", token.text.len())?;
+                        writeln!(writer, "    push rax")?;
+                        writeln!(writer, "    push str_{}", strings.len())?;
+                        strings.push(token.text.clone());
+                        ti += 1;
+                    }
+                    InstructionType::Drop => {
+                        writeln!(writer, "    ;; -- drop")?;
+                        writeln!(writer, "    pop rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::Print => {
+                        writeln!(writer, "    ;; -- print")?;
+                        writeln!(writer, "    pop rdi")?;
+                        writeln!(writer, "    call print")?;
+                        ti += 1;
+                    },
+        
+                    InstructionType::Dup => {
+                        writeln!(writer, "    ;; -- dup")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    push rax")?;
+                        writeln!(writer, "    push rax")?;
+        
+                        ti += 1;
+                    },
+        
+                    InstructionType::Rot => {
+                        writeln!(writer, "    ;; -- rot")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rcx")?;
+                        writeln!(writer, "    push rbx")?;
+                        writeln!(writer, "    push rax")?;
+                        writeln!(writer, "    push rcx")?;
+        
+                        ti += 1;
+                    },
+                    InstructionType::Swap => {
+                        writeln!(writer, "    ;; -- swap")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    push rax")?;
+                        writeln!(writer, "    push rbx")?;
+        
+                        ti += 1;
+                    },
+                    InstructionType::Over => {
+                        writeln!(writer, "    ;; -- over")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    push rbx")?;
+                        writeln!(writer, "    push rax")?;
+                        writeln!(writer, "    push rbx")?;
+        
+                        ti += 1;
+                    },
+        
+                    //mem
+                    InstructionType::Mem => {
+                        writeln!(writer, "    ;; -- mem")?;
+                        writeln!(writer, "    push mem")?;
+                        ti += 1;
+                    }
+                    InstructionType::Load8 => {
+                        writeln!(writer, "    ;; -- load")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    xor rbx, rbx")?;
+                        writeln!(writer, "    mov bl, [rax]")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    }
+        
+                    InstructionType::Store8 => {
+                        writeln!(writer, "    ;; -- store")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    mov [rax], bl")?;
+                        ti += 1;
+                    }
+        
+                    // math
+                    InstructionType::Plus => {
+                        writeln!(writer, "    ;; -- plus")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    add rax, rbx")?;
+                        writeln!(writer, "    push rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::Minus => {
+                        writeln!(writer, "    ;; -- minus")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    sub rbx, rax")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Equals => {
+                        writeln!(writer, "    ;; -- equals")?;
+                        writeln!(writer, "    mov rcx, 0")?;
+                        writeln!(writer, "    mov rdx, 1")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    cmp rax, rbx")?;
+                        writeln!(writer, "    cmove rcx, rdx")?;
+                        writeln!(writer, "    push rcx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Lt => {
+                        writeln!(writer, "    ;; -- lt")?;
+                        writeln!(writer, "    mov rcx, 0")?;
+                        writeln!(writer, "    mov rdx, 1")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    cmp rax, rbx")?;
+                        writeln!(writer, "    cmovl rcx, rdx")?;
+                        writeln!(writer, "    push rcx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Gt => {
+                        writeln!(writer, "    ;; -- gt")?;
+                        writeln!(writer, "    mov rcx, 0")?;
+                        writeln!(writer, "    mov rdx, 1")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    cmp rax, rbx")?;
+                        writeln!(writer, "    cmovg rcx, rdx")?;
+                        writeln!(writer, "    push rcx")?;
+                        ti += 1;
+                    },
+                    InstructionType::NotEquals => {
+                        writeln!(writer, "    ;; -- not equals")?;
+                        writeln!(writer, "    mov rcx, 1")?;
+                        writeln!(writer, "    mov rdx, 0")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    cmp rax, rbx")?;
+                        writeln!(writer, "    cmove rcx, rdx")?;
+                        writeln!(writer, "    push rcx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Le => {
+                        writeln!(writer, "    ;; -- lt")?;
+                        writeln!(writer, "    mov rcx, 0")?;
+                        writeln!(writer, "    mov rdx, 1")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    cmp rax, rbx")?;
+                        writeln!(writer, "    cmovle rcx, rdx")?;
+                        writeln!(writer, "    push rcx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Ge => {
+                        writeln!(writer, "    ;; -- gt")?;
+                        writeln!(writer, "    mov rcx, 0")?;
+                        writeln!(writer, "    mov rdx, 1")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    cmp rax, rbx")?;
+                        writeln!(writer, "    cmovge rcx, rdx")?;
+                        writeln!(writer, "    push rcx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Band => {
+                        writeln!(writer, "    ;; -- band")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    and rbx, rax")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Bor => {
+                        writeln!(writer, "    ;; -- bor")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    or rbx, rax")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Shr => {
+                        writeln!(writer, "    ;; -- shr")?;
+                        writeln!(writer, "    pop rcx")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    shr rbx, cl")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Shl => {
+                        writeln!(writer, "    ;; -- shl")?;
+                        writeln!(writer, "    pop rcx")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    shl rbx, cl")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    },
+                    InstructionType::DivMod => {
+                        writeln!(writer, "    ;; -- div")?;
+                        writeln!(writer, "    xor rdx, rdx")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    div rbx")?;
+                        writeln!(writer, "    push rax")?;
+                        writeln!(writer, "    push rdx")?;
+                        ti += 1;
+                    },
+                    InstructionType::Mul => {
+                        writeln!(writer, "    ;; -- mul")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    mul rbx")?;
+                        writeln!(writer, "    push rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::Syscall0 => {
+                        writeln!(writer, "    ;; -- syscall0")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    syscall")?;
+                        writeln!(writer, "    push rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::Syscall1 => {
+                        writeln!(writer, "    ;; -- syscall1")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rdi")?;
+                        writeln!(writer, "    syscall")?;
+                        writeln!(writer, "    push rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::Syscall2 => {
+                        writeln!(writer, "    ;; -- syscall2")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rdi")?;
+                        writeln!(writer, "    pop rsi")?;
+                        writeln!(writer, "    syscall")?;
+                        writeln!(writer, "    push rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::Syscall3 => {
+                        writeln!(writer, "    ;; -- syscall3")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rdi")?;
+                        writeln!(writer, "    pop rsi")?;
+                        writeln!(writer, "    pop rdx")?;
+                        writeln!(writer, "    syscall")?;
+                        writeln!(writer, "    push rax")?;
+        
+                        ti += 1;
+                    },
+                    InstructionType::Syscall4 => {
+                        writeln!(writer, "    ;; -- syscall4")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rdi")?;
+                        writeln!(writer, "    pop rsi")?;
+                        writeln!(writer, "    pop rdx")?;
+                        writeln!(writer, "    pop r10")?;
+                        writeln!(writer, "    syscall")?;
+                        writeln!(writer, "    push rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::Syscall5 => {
+                        writeln!(writer, "    ;; -- syscall5")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rdi")?;
+                        writeln!(writer, "    pop rsi")?;
+                        writeln!(writer, "    pop rdx")?;
+                        writeln!(writer, "    pop r10")?;
+                        writeln!(writer, "    pop r8")?;
+                        writeln!(writer, "    syscall")?;
+                        writeln!(writer, "    push rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::Syscall6 => {
+                        writeln!(writer, "    ;; -- syscall6")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    pop rdi")?;
+                        writeln!(writer, "    pop rsi")?;
+                        writeln!(writer, "    pop rdx")?;
+                        writeln!(writer, "    pop r10")?;
+                        writeln!(writer, "    pop r8")?;
+                        writeln!(writer, "    pop r9")?;
+                        writeln!(writer, "    syscall")?;
+                        writeln!(writer, "    push rax")?;
+                        ti += 1;
+                    },
+                    InstructionType::None => unreachable!(),
+                    InstructionType::CastBool => ti += 1,
+                    InstructionType::CastPtr => ti += 1,
+                    InstructionType::CastInt => ti += 1,
                 }
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall0) => {
-                writeln!(writer, "    ;; -- syscall0")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    syscall")?;
-                writeln!(writer, "    push rax")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall1) => {
-                writeln!(writer, "    ;; -- syscall1")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rdi")?;
-                writeln!(writer, "    syscall")?;
-                writeln!(writer, "    push rax")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall2) => {
-                writeln!(writer, "    ;; -- syscall2")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rdi")?;
-                writeln!(writer, "    pop rsi")?;
-                writeln!(writer, "    syscall")?;
-                writeln!(writer, "    push rax")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall3) => {
-                writeln!(writer, "    ;; -- syscall3")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rdi")?;
-                writeln!(writer, "    pop rsi")?;
-                writeln!(writer, "    pop rdx")?;
-                writeln!(writer, "    syscall")?;
-                writeln!(writer, "    push rax")?;
+            }
 
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall4) => {
-                writeln!(writer, "    ;; -- syscall4")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rdi")?;
-                writeln!(writer, "    pop rsi")?;
-                writeln!(writer, "    pop rdx")?;
-                writeln!(writer, "    pop r10")?;
-                writeln!(writer, "    syscall")?;
-                writeln!(writer, "    push rax")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall5) => {
-                writeln!(writer, "    ;; -- syscall5")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rdi")?;
-                writeln!(writer, "    pop rsi")?;
-                writeln!(writer, "    pop rdx")?;
-                writeln!(writer, "    pop r10")?;
-                writeln!(writer, "    pop r8")?;
-                writeln!(writer, "    syscall")?;
-                writeln!(writer, "    push rax")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall6) => {
-                writeln!(writer, "    ;; -- syscall6")?;
-                writeln!(writer, "    pop rax")?;
-                writeln!(writer, "    pop rdi")?;
-                writeln!(writer, "    pop rsi")?;
-                writeln!(writer, "    pop rdx")?;
-                writeln!(writer, "    pop r10")?;
-                writeln!(writer, "    pop r8")?;
-                writeln!(writer, "    pop r9")?;
-                writeln!(writer, "    syscall")?;
-                writeln!(writer, "    push rax")?;
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::None) | OpType::Keyword(KeywordType::Macro) | OpType::Keyword(KeywordType::Include) => unreachable!()
+
+            OpType::Keyword(keyword) => {
+                match keyword {
+
+                    // block
+                    KeywordType::If => {
+                        writeln!(writer, "    ;; -- if")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    test rax, rax")?;
+                        writeln!(writer, "    jz addr_{}", token.jmp)?;
+                        ti += 1;
+                    },
+                    KeywordType::Else => {
+                        writeln!(writer, "    ;; -- else")?;
+                        writeln!(writer, "    jmp addr_{}", token.jmp)?;
+                        ti += 1;
+                    },
+                    KeywordType::While => {
+                        writeln!(writer, "    ;; -- while")?;
+                        ti += 1;
+                    }
+                    KeywordType::Do => {
+                        writeln!(writer, "    ;; -- do")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    test rax, rax")?;
+                        writeln!(writer, "    jz addr_{}", token.jmp)?;
+                        ti += 1;
+                    }
+                    KeywordType::End => {
+                        writeln!(writer, "    ;; -- end")?;
+                        if ti + 1 != token.jmp {
+                            writeln!(writer, "    jmp addr_{}", token.jmp)?;
+                        }
+                        ti += 1;
+                    },
+                    KeywordType::Macro |
+                    KeywordType::Include
+                        => unreachable!()
+                }
+            }
         }
     }
     writeln!(writer, "addr_{ti}:")?;
@@ -411,10 +427,10 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     writeln!(writer, "    mov rdi, 0")?;
     writeln!(writer, "    syscall")?;
     writeln!(writer, "segment .data")?;
-    for (_, s) in strings.iter().enumerate() {
+    for (i, s) in strings.iter().enumerate() {
         let s_chars = s.chars().map(|c| (c as u32).to_string()).collect::<Vec<String>>();
         let s_list = s_chars.join(",");
-        writeln!(writer, "    str_{}: db {} ; {}", s, s_list, s.escape_default())?;
+        writeln!(writer, "    str_{}: db {} ; {}", i, s_list, s.escape_default())?;
     }
 
     writeln!(writer, "segment .bss")?;

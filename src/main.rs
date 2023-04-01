@@ -5,6 +5,7 @@ mod compile;
 mod parser;
 mod lexer;
 mod preprocessor;
+mod typechecker;
 
 use std::fs;
 
@@ -54,6 +55,8 @@ pub struct Args {
 }
 
 fn main() {
+
+
     let args = Args::parse();
 
     let Ok(code) = fs::read_to_string(&args.in_file) else {
@@ -70,6 +73,11 @@ fn main() {
     let mut parser = parser::Parser::new(tokens);
     let Ok(tokens) = parser.parse() else {
         error!("Parsing failed, exiting!");
+        return;
+    };
+
+    let Ok(tokens) = typechecker::typecheck(&tokens, &args) else {
+        error!("Typechecking failed, exiting!");
         return;
     };
 

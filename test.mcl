@@ -1,1 +1,3 @@
-' ' print
+include "./asd.mcl"
+
+1 test

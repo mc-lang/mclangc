@@ -46,6 +46,10 @@ pub enum InstructionType {
     Syscall5,
     Syscall6,
 
+    CastBool,
+    CastPtr,
+    CastInt,    
+
     None // Used for macros and any other non built in word definitions
 
 }
@@ -132,7 +136,10 @@ impl OpType {
             OpType::Instruction(InstructionType::Syscall4) => "syscall4",
             OpType::Instruction(InstructionType::Syscall5) => "syscall5",
             OpType::Instruction(InstructionType::Syscall6) => "syscall6",
-            OpType::Instruction(InstructionType::None) => "None"
+            OpType::Instruction(InstructionType::CastBool) => "cast(bool",
+            OpType::Instruction(InstructionType::CastPtr) => "cast(ptr)",
+            OpType::Instruction(InstructionType::CastInt) => "cast(int)",
+            OpType::Instruction(InstructionType::None) => "None",
         }.to_string()
     }
 }
@@ -176,3 +183,17 @@ impl TokenType {
 }
 
 pub type Loc = (String, usize, usize);
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Types {
+    Bool,
+    Ptr,
+    Int,
+    Any
+    // U8,
+    // U16,
+    // U32,
+    // U64,
+    // todo: add signed numbers since we dont have them yet lol
+}
+

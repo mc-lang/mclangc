@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 
 use color_eyre::Result;
 use eyre::eyre;
@@ -93,18 +93,25 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
                 
                 let mut include_code = String::new();
                 
-                for path in in_paths {
-                    let p = PathBuf::from(path);
-                    let p = p.join(include_path.text.clone());
-
-                    if p.exists() {
-                        include_code = std::fs::read_to_string(p)?;
+                if include_path.text.chars().collect::<Vec<char>>()[0] == '.' {
+                    let p = Path::new(include_path.file.as_str());
+                    let p = p.parent().unwrap();
+                    let p = p.join(&include_path.text);
+                    include_code = std::fs::read_to_string(p)?;
+                } else {   
+                    for path in in_paths {
+                        let p = PathBuf::from(path);
+                        let p = p.join(&include_path.text);
+                        
+                        if p.exists() {
+                            include_code = std::fs::read_to_string(p)?;
+                        }
+                        
                     }
-
                 }
 
                 if include_code.is_empty() {
-                    lerror!(&include_path.loc(), "Include file in path '{}' was not found", include_path.text);
+                    lerror!(&include_path.loc(), "Include file in path '{}' was not found or is empty", include_path.text);
                     return Err(eyre!(""));
                 }
 

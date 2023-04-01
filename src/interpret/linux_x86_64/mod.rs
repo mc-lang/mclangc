@@ -24,187 +24,235 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
         let token = &tokens[ti];
         let pos = token.loc.clone();
         // println!("{:?}", token.typ);
-        match token.typ {
-            
-            // stack 
-            OpType::Instruction(InstructionType::PushInt) => {
-                stack.push(token.value);
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::PushStr) => {
-                if  token.addr.is_none() {
-                    stack.push(token.text.len()); // string len
-                    stack.push(string_idx + crate::compile::MEM_SZ);
+        match token.typ.clone() {
+            OpType::Instruction(instruction) => {
+                match instruction {
+                    InstructionType::PushInt => {
+                        stack.push(token.value);
+                        ti += 1;
+                    },
+                    InstructionType::PushStr => {
+                        if  token.addr.is_none() {
+                            stack.push(token.text.len()); // string len
+                            stack.push(string_idx + crate::compile::MEM_SZ);
+                            
+                            for c in token.text.bytes() {
+                                mem[crate::compile::MEM_SZ + string_idx] = c;
+                                string_idx += 1;
+                            }
+                        } else {
+                            stack.push(token.text.len()); 
+                            if let Some(addr) = token.addr {
+                                stack.push(addr);
+                            }
+                        }
+        
+        
+                        ti += 1;
+                    },
+                    InstructionType::Drop => {
+                        stack.pop();
+                        ti += 1;
+                    },
+                    InstructionType::Dup => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        stack.push(a);
+                        stack.push(a);
+                        ti += 1;
+                    },
+        
+                    InstructionType::Rot => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        let c = stack_pop(&mut stack, &pos)?;
+                        stack.push(b);
+                        stack.push(a);
+                        stack.push(c);
+                        ti += 1;
+                    }
+                    InstructionType::Swap => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(a);
+                        stack.push(b);
+                        ti += 1;
+                    }
+                    InstructionType::Over => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(b);
+                        stack.push(a);
+                        stack.push(b);
+                        ti += 1;
+                    }
+        
+                    InstructionType::Print => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        println!("{a}");
+                        // let _ = io::stdout().flush();
+                        ti += 1;
+                    },
+                    // mem
+        
+                    InstructionType::Mem => {
+                        stack.push(0);
+                        ti += 1;
+                    }
+                    InstructionType::Load8 => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let byte = mem[a];
+                        stack.push(byte as usize);
+                        ti += 1;
+                    }
+                    #[allow(clippy::cast_possible_truncation)]
+                    InstructionType::Store8 => {
+                        let val = stack_pop(&mut stack, &pos)?;
+                        let addr = stack_pop(&mut stack, &pos)?;
+        
+                        mem[addr] = (val & 0xFF) as u8;
+                        ti += 1;
+                    }
+        
+                    // math
+                    InstructionType::Plus => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(b + a);
+                        ti += 1;
+                    },
+                    InstructionType::Minus => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(b - a);
+                        ti += 1;
+                    },
+                    InstructionType::Equals => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(usize::from(b == a));
+                        ti += 1;
+                    },
+                    InstructionType::Gt => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(usize::from(b > a));
+                        ti += 1;
+                    },
+                    InstructionType::Lt => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(usize::from(b < a));
+                        ti += 1;
+                    },
+                    InstructionType::NotEquals => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(usize::from(b != a));
+                        ti += 1;
+                    },
+                    InstructionType::Ge => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(usize::from(b >= a));
+                        ti += 1;
+                    },
+                    InstructionType::Le => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(usize::from(b <= a));
+                        ti += 1;
+                    },
+        
+                    InstructionType::Band => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(a & b);
+                        ti += 1;
+                    }
+        
+                    InstructionType::Bor => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(a | b);
+                        ti += 1;
+                    }
+        
+                    InstructionType::Shr => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(b >> a);
+                        ti += 1;
+                    }
+        
+                    InstructionType::Shl => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(b << a);
+                        ti += 1;
+                    }
                     
-                    for c in token.text.bytes() {
-                        mem[crate::compile::MEM_SZ + string_idx] = c;
-                        string_idx += 1;
+                    InstructionType::DivMod => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(b / a);
+                        stack.push(b % a);
+                        ti += 1;
                     }
-                } else {
-                    stack.push(token.text.len()); 
-                    if let Some(addr) = token.addr {
-                        stack.push(addr);
+                    InstructionType::Mul => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        let b = stack_pop(&mut stack, &pos)?;
+                        stack.push(b * a);
+                        ti += 1;
                     }
+                    InstructionType::Syscall0 => {
+                        todo!();
+                        // ti += 1;
+                    },
+                    InstructionType::Syscall1 => {
+                        todo!();
+                        // ti += 1;
+                    },
+                    InstructionType::Syscall2 => {
+                        todo!();
+                        // ti += 1;
+                    },
+                    InstructionType::Syscall3 => {
+                        let rax = stack_pop(&mut stack, &pos)?;
+                        let rdi = stack_pop(&mut stack, &pos)?;
+                        let rsi = stack_pop(&mut stack, &pos)?;
+                        let rdx = stack_pop(&mut stack, &pos)?;
+                        // println!("yes");
+                        let ret = match rax {
+                            1 => syscalls::sys_write(rax, rdi, rsi, rdx, &mem),
+                            0 => 0, //? temp, so clippy doesnt complain
+                            _ => {
+                                error!("Syscall(3) #{} is not implemented", rax);
+                                return Err(eyre!("Syscall not implemented"));
+                            }
+                        };
+                        stack.push(ret);
+                        // println!("{}", stack.len());
+                        ti += 1;
+                    },
+                    InstructionType::Syscall4 => {
+                        todo!();
+                        // ti += 1;
+                    },
+                    InstructionType::Syscall5 => {
+                        todo!();
+                        // ti += 1;
+                    },
+                    InstructionType::Syscall6 => {
+                        todo!();
+                        // ti += 1;
+                    },
+                    InstructionType::CastBool => ti += 1,
+                    InstructionType::CastPtr => ti += 1,
+                    InstructionType::CastInt => ti += 1,
+                    InstructionType::None => unreachable!()
                 }
 
-
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Drop) => {
-                stack.pop();
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Dup) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                stack.push(a);
-                stack.push(a);
-                ti += 1;
-            },
-
-            OpType::Instruction(InstructionType::Rot) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                let c = stack_pop(&mut stack, &pos)?;
-                stack.push(b);
-                stack.push(a);
-                stack.push(c);
-                ti += 1;
             }
-            OpType::Instruction(InstructionType::Swap) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(a);
-                stack.push(b);
-                ti += 1;
-            }
-            OpType::Instruction(InstructionType::Over) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(b);
-                stack.push(a);
-                stack.push(b);
-                ti += 1;
-            }
-
-            OpType::Instruction(InstructionType::Print) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                println!("{a}");
-                // let _ = io::stdout().flush();
-                ti += 1;
-            },
-            // mem
-
-            OpType::Instruction(InstructionType::Mem) => {
-                stack.push(0);
-                ti += 1;
-            }
-            OpType::Instruction(InstructionType::Load8) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let byte = mem[a];
-                stack.push(byte as usize);
-                ti += 1;
-            }
-            #[allow(clippy::cast_possible_truncation)]
-            OpType::Instruction(InstructionType::Store8) => {
-                let val = stack_pop(&mut stack, &pos)?;
-                let addr = stack_pop(&mut stack, &pos)?;
-
-                mem[addr] = (val & 0xFF) as u8;
-                ti += 1;
-            }
-
-            // math
-            OpType::Instruction(InstructionType::Plus) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(b + a);
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Minus) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(b - a);
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Equals) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(usize::from(b == a));
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Gt) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(usize::from(b > a));
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Lt) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(usize::from(b < a));
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::NotEquals) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(usize::from(b != a));
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Ge) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(usize::from(b >= a));
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Le) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(usize::from(b <= a));
-                ti += 1;
-            },
-
-            OpType::Instruction(InstructionType::Band) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(a & b);
-                ti += 1;
-            }
-
-            OpType::Instruction(InstructionType::Bor) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(a | b);
-                ti += 1;
-            }
-
-            OpType::Instruction(InstructionType::Shr) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(b >> a);
-                ti += 1;
-            }
-
-            OpType::Instruction(InstructionType::Shl) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(b << a);
-                ti += 1;
-            }
-            
-            OpType::Instruction(InstructionType::DivMod) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(b / a);
-                stack.push(b % a);
-                ti += 1;
-            }
-            OpType::Instruction(InstructionType::Mul) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                let b = stack_pop(&mut stack, &pos)?;
-                stack.push(b * a);
-                ti += 1;
-            }
-
 
             // blocks
             OpType::Keyword(KeywordType::If) => {
@@ -230,49 +278,7 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                     ti += 1;
                 }
             }
-            OpType::Instruction(InstructionType::Syscall0) => {
-                todo!();
-                // ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall1) => {
-                todo!();
-                // ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall2) => {
-                todo!();
-                // ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall3) => {
-                let rax = stack_pop(&mut stack, &pos)?;
-                let rdi = stack_pop(&mut stack, &pos)?;
-                let rsi = stack_pop(&mut stack, &pos)?;
-                let rdx = stack_pop(&mut stack, &pos)?;
-                // println!("yes");
-                let ret = match rax {
-                    1 => syscalls::sys_write(rax, rdi, rsi, rdx, &mem),
-                    0 => 0, //? temp, so clippy doesnt complain
-                    _ => {
-                        error!("Syscall(3) #{} is not implemented", rax);
-                        return Err(eyre!("Syscall not implemented"));
-                    }
-                };
-                stack.push(ret);
-                // println!("{}", stack.len());
-                ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall4) => {
-                todo!();
-                // ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall5) => {
-                todo!();
-                // ti += 1;
-            },
-            OpType::Instruction(InstructionType::Syscall6) => {
-                todo!();
-                // ti += 1;
-            },
-            OpType::Instruction(InstructionType::None) | OpType::Keyword(KeywordType::Macro) | OpType::Keyword(KeywordType::Include) => unreachable!()
+             | OpType::Keyword(KeywordType::Macro) | OpType::Keyword(KeywordType::Include) => unreachable!()
         }
     }
     
