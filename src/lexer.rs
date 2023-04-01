@@ -108,7 +108,10 @@ pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, args: &Args
                 line: row + 1,
                 col,
                 text: tok,
-                typ: tok_type
+                typ: tok_type,
+                value: None,
+                addr: None,
+                op_typ: crate::constants::InstructionType::None
             };
             tokens.push(t);
         }

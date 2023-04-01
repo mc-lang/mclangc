@@ -6,6 +6,7 @@ mod parser;
 mod lexer;
 mod preprocessor;
 mod typechecker;
+mod precompiler;
 
 use std::fs;
 
@@ -16,6 +17,8 @@ pub const DEFAULT_INCLUDES: [&str;2] = [
     "./include",
     "~/.mclang/include",
 ];
+
+
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -48,6 +51,9 @@ pub struct Args {
     #[arg(long, short='I')]
     include: Vec<String>,
 
+    /// Unsafe mode, disables typechecking
+    #[arg(long="unsafe", default_value_t = false)]
+    unsaf: bool
     
     //#[arg(long, short='F')]
     //features: Vec<String>,

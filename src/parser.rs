@@ -79,8 +79,13 @@ impl Parser {
             let pos = (token.file.clone(), token.line, token.col);
             match token.typ {
                 TokenType::Word => {
-                    let word_type = lookup_word(&token.text, &pos);
-                    tokens.push(Operator::new(word_type, 0, token.text.clone(), token.file.clone(), token.line, token.col));
+                    let word_type = if token.op_typ == InstructionType::MemUse {
+                        OpType::Instruction(InstructionType::MemUse)
+                    } else {
+                        lookup_word(&token.text, &pos)
+                    };
+
+                    tokens.push(Operator::new(word_type, token.value.unwrap_or(0), token.text.clone(), token.file.clone(), token.line, token.col).set_addr(token.addr.unwrap_or(0)));
                 },
                 TokenType::Int => {// negative numbers not yet implemented
                     tokens.push(Operator::new(OpType::Instruction(InstructionType::PushInt), token.text.parse::<usize>()?, String::new(), token.file.clone(), token.line, token.col));
@@ -109,6 +114,10 @@ impl Parser {
 
 
 pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
+    let n = s.parse::<usize>();
+    if let Ok(_) = n {
+        return OpType::Instruction(InstructionType::PushInt);
+    }
     match s {
         //stack
         "print" => OpType::Instruction(InstructionType::Print),
@@ -135,20 +144,12 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "divmod" => OpType::Instruction(InstructionType::DivMod),
         "*" => OpType::Instruction(InstructionType::Mul),
         
-        // block
-        "if" => OpType::Keyword(KeywordType::If),
-        "else" => OpType::Keyword(KeywordType::Else),
-        "end" => OpType::Keyword(KeywordType::End),
-        "while" => OpType::Keyword(KeywordType::While),
-        "do" => OpType::Keyword(KeywordType::Do),
-        "macro" => OpType::Keyword(KeywordType::Macro),
-        "include" => OpType::Keyword(KeywordType::Include),
-
+        
         // mem
         "mem" => OpType::Instruction(InstructionType::Mem),
-        "!8" => OpType::Instruction(InstructionType::Load8),
-        "@8" => OpType::Instruction(InstructionType::Store8),
-
+        "load8" => OpType::Instruction(InstructionType::Load8),
+        "store8" => OpType::Instruction(InstructionType::Store8),
+        
         "syscall0" => OpType::Instruction(InstructionType::Syscall0),
         "syscall1" => OpType::Instruction(InstructionType::Syscall1),
         "syscall2" => OpType::Instruction(InstructionType::Syscall2),
@@ -159,6 +160,15 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "cast(bool" => OpType::Instruction(InstructionType::CastBool),
         "cast(ptr)" => OpType::Instruction(InstructionType::CastPtr),
         "cast(int)" => OpType::Instruction(InstructionType::CastInt),
+        // block
+        "if" => OpType::Keyword(KeywordType::If),
+        "else" => OpType::Keyword(KeywordType::Else),
+        "end" => OpType::Keyword(KeywordType::End),
+        "while" => OpType::Keyword(KeywordType::While),
+        "do" => OpType::Keyword(KeywordType::Do),
+        "macro" => OpType::Keyword(KeywordType::Macro),
+        "include" => OpType::Keyword(KeywordType::Include),
+        "memory" => OpType::Keyword(KeywordType::Memory),
         _ => OpType::Instruction(InstructionType::None)
     }
 

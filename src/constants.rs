@@ -4,7 +4,7 @@ pub const ALLOW_MACRO_REDEFINITION: bool = true;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InstructionType {
-    
+
     // stack
     PushInt,
     PushStr,
@@ -30,13 +30,13 @@ pub enum InstructionType {
     Shl,  // <<
     DivMod, // /
     Mul,
-    
-    
+
+
     // mem
     Mem,
     Load8,
     Store8,
-    
+
     // syscalls
     Syscall0,
     Syscall1,
@@ -48,8 +48,9 @@ pub enum InstructionType {
 
     CastBool,
     CastPtr,
-    CastInt,    
+    CastInt,
 
+    MemUse,
     None // Used for macros and any other non built in word definitions
 
 }
@@ -62,6 +63,7 @@ pub enum KeywordType {
     Do,
     Macro,
     Include,
+    Memory
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -77,7 +79,7 @@ pub struct Operator{
     pub text: String, //? only used for OpType::PushStr
     pub addr: Option<usize>, //? only used for OpType::PushStr
     pub jmp: usize,
-    pub loc: (String, usize, usize)
+    pub loc: Loc
 }
 
 impl Operator {
@@ -91,55 +93,71 @@ impl Operator {
             loc: (file, row, col)
         }
     }
-    
+    pub fn set_addr(mut self, addr: usize) -> Self {
+        self.addr = Some(addr);
+        self
+    }
+
 }
 
 impl OpType {
     pub fn human(&self) -> String {
-        match *self {
-            OpType::Instruction(InstructionType::PushInt) => "Number",
-            OpType::Instruction(InstructionType::PushStr) => "String",
-            OpType::Instruction(InstructionType::Print) => "print",
-            OpType::Instruction(InstructionType::Dup) => "dup",
-            OpType::Instruction(InstructionType::Drop) => "drop",
-            OpType::Instruction(InstructionType::Rot) => "rot",
-            OpType::Instruction(InstructionType::Over) => "over",
-            OpType::Instruction(InstructionType::Swap) => "swap",
-            OpType::Instruction(InstructionType::Plus) => "+",
-            OpType::Instruction(InstructionType::Minus) => "-",
-            OpType::Instruction(InstructionType::Equals) => "=",
-            OpType::Instruction(InstructionType::Gt) => ">",
-            OpType::Instruction(InstructionType::Lt) => "<",
-            OpType::Instruction(InstructionType::NotEquals) => "!=",
-            OpType::Instruction(InstructionType::Le) => "<=",
-            OpType::Instruction(InstructionType::Ge) => ">=",
-            OpType::Instruction(InstructionType::Band) => "band",
-            OpType::Instruction(InstructionType::Bor) => "bor",
-            OpType::Instruction(InstructionType::Shr) => "shr",
-            OpType::Instruction(InstructionType::Shl) => "shl",
-            OpType::Instruction(InstructionType::DivMod) => "divmod",
-            OpType::Instruction(InstructionType::Mul) => "*",
-            OpType::Keyword(KeywordType::If) => "if",
-            OpType::Keyword(KeywordType::Else) => "else",
-            OpType::Keyword(KeywordType::End) => "end",
-            OpType::Keyword(KeywordType::While) => "while",
-            OpType::Keyword(KeywordType::Do) => "do",
-            OpType::Keyword(KeywordType::Macro) => "macro",
-            OpType::Keyword(KeywordType::Include) => "include",
-            OpType::Instruction(InstructionType::Mem) => "mem",
-            OpType::Instruction(InstructionType::Load8) => "!8",
-            OpType::Instruction(InstructionType::Store8) => "@8",
-            OpType::Instruction(InstructionType::Syscall0) => "syscall0",
-            OpType::Instruction(InstructionType::Syscall1) => "syscall1",
-            OpType::Instruction(InstructionType::Syscall2) => "syscall2",
-            OpType::Instruction(InstructionType::Syscall3) => "syscall3",
-            OpType::Instruction(InstructionType::Syscall4) => "syscall4",
-            OpType::Instruction(InstructionType::Syscall5) => "syscall5",
-            OpType::Instruction(InstructionType::Syscall6) => "syscall6",
-            OpType::Instruction(InstructionType::CastBool) => "cast(bool",
-            OpType::Instruction(InstructionType::CastPtr) => "cast(ptr)",
-            OpType::Instruction(InstructionType::CastInt) => "cast(int)",
-            OpType::Instruction(InstructionType::None) => "None",
+        match (*self).clone() {
+            OpType::Instruction(instruction) => {
+                match instruction {
+
+                    InstructionType::PushInt => "Number",
+                    InstructionType::PushStr => "String",
+                    InstructionType::Print => "print",
+                    InstructionType::Dup => "dup",
+                    InstructionType::Drop => "drop",
+                    InstructionType::Rot => "rot",
+                    InstructionType::Over => "over",
+                    InstructionType::Swap => "swap",
+                    InstructionType::Plus => "+",
+                    InstructionType::Minus => "-",
+                    InstructionType::Equals => "=",
+                    InstructionType::Gt => ">",
+                    InstructionType::Lt => "<",
+                    InstructionType::NotEquals => "!=",
+                    InstructionType::Le => "<=",
+                    InstructionType::Ge => ">=",
+                    InstructionType::Band => "band",
+                    InstructionType::Bor => "bor",
+                    InstructionType::Shr => "shr",
+                    InstructionType::Shl => "shl",
+                    InstructionType::DivMod => "divmod",
+                    InstructionType::Mul => "*",
+                    InstructionType::Mem => "mem",
+                    InstructionType::Load8 => "!8",
+                    InstructionType::Store8 => "@8",
+                    InstructionType::Syscall0 => "syscall0",
+                    InstructionType::Syscall1 => "syscall1",
+                    InstructionType::Syscall2 => "syscall2",
+                    InstructionType::Syscall3 => "syscall3",
+                    InstructionType::Syscall4 => "syscall4",
+                    InstructionType::Syscall5 => "syscall5",
+                    InstructionType::Syscall6 => "syscall6",
+                    InstructionType::CastBool => "cast(bool",
+                    InstructionType::CastPtr => "cast(ptr)",
+                    InstructionType::CastInt => "cast(int)",
+                    InstructionType::MemUse => "MemUse",
+                    InstructionType::None => "None",
+                }
+            }
+            OpType::Keyword(keyword) => {
+                match keyword {
+                    KeywordType::If => "if",
+                    KeywordType::Else => "else",
+                    KeywordType::End => "end",
+                    KeywordType::While => "while",
+                    KeywordType::Do => "do",
+                    KeywordType::Macro => "macro",
+                    KeywordType::Include => "include",
+                    KeywordType::Memory => "memory"
+                }
+            }
+            
         }.to_string()
     }
 }
@@ -150,7 +168,10 @@ pub struct Token {
     pub line: usize,
     pub col: usize,
     pub text: String,
-    pub typ: TokenType
+    pub typ: TokenType,
+    pub value: Option<usize>, //* only used for Memories
+    pub addr: Option<usize>, //* only used for Memories
+    pub op_typ: InstructionType //* only used for Memories
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]

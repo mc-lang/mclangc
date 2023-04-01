@@ -6,7 +6,8 @@ use eyre::eyre;
 
 use crate::constants::{Token, Loc, OpType, TokenType, KeywordType, InstructionType};
 use crate::lexer::lex;
-use crate::{lerror, lnote, Args, warn};
+use crate::precompiler::precompile;
+use crate::{lerror, lnote, Args, warn, linfo};
 use crate::parser::lookup_word;
 
 #[derive(Debug)]
@@ -15,14 +16,20 @@ pub struct Macro {
     pub tokens: Vec<Token>
 }
 
+type Macros = HashMap<String, Macro>;
+type Memories = HashMap<String, usize>;
+
 pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
-    let mut program: Vec<Token> = Vec::new();
-    let mut macros: HashMap<String, Macro> = HashMap::new();
     
+
+    let mut program: Vec<Token> = Vec::new();
+    let mut macros: Macros = HashMap::new();
+    let mut memories: Memories = HashMap::new();
+
     let mut rtokens = tokens;
     rtokens.reverse();
     while !rtokens.is_empty() {
-        let token = rtokens.pop().unwrap();
+        let mut token = rtokens.pop().unwrap();
         
         let op_type = lookup_word(&token.text, &token.loc());
         match token.clone() {
@@ -66,7 +73,6 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
                     } else {
                         macr.tokens.push(t);
                     }
-                    
                 }
 
 
@@ -121,6 +127,57 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
 
 
             }
+            _ if op_type == OpType::Keyword(KeywordType::Memory) => {
+                if rtokens.is_empty() {
+                    lerror!(&token.loc(), "Memory name not found, expected {} but found nothing", TokenType::String.human());
+                    return Err(eyre!(""));
+                }
+
+                let memory_name = rtokens.pop().unwrap();
+
+                if memory_name.typ != TokenType::Word {
+                    lerror!(&memory_name.loc(), "Bad memory name, expected {} but found {}", TokenType::Word.human(), memory_name.typ.human());
+                    return Err(eyre!(""));
+                }
+
+                if macros.get(&memory_name.text).is_some() {
+                    lerror!(&memory_name.loc(), "Memory name cannot replace macro name, got {}", memory_name.text);
+                    let m = macros.get(&memory_name.text).unwrap();
+                    linfo!(&m.loc, "Macro found here");
+                    return Err(eyre!(""));
+                }
+
+                let mut code: Vec<Token> = Vec::new();
+
+                let mut depth = 0;
+                while !rtokens.is_empty() {
+                    let t = rtokens.pop().unwrap();
+                    let typ = lookup_word(&t.text, &t.loc());
+                    if typ == OpType::Keyword(KeywordType::End) && depth == 0 {
+                        break;
+                    } else if typ == OpType::Keyword(KeywordType::End) && depth != 0 {
+                        depth -= 1;
+                        code.push(t);
+                    } else if typ == OpType::Keyword(KeywordType::If) || typ == OpType::Keyword(KeywordType::Do) {
+                        code.push(t);
+                        depth += 1;
+                    } else {
+                        code.push(t);
+                    }
+                }
+                let res = precompile(&code)?;
+
+                if res.len() != 1 {
+                    lerror!(&token.loc(), "Expected 1 number, got {:?}", res);
+                    return Err(eyre!(""));
+                }
+                token.value = Some(res[0]);
+                token.addr = Some(memories.len());
+                program.push(token);
+
+                memories.insert(memory_name.text, memories.len());
+
+            }
             _ => {
                 program.push(token);
             }
@@ -131,7 +188,7 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
     //* i wanna kms
     let mut times = 0;
     while program.iter().map(|f| {
-        if f.typ == TokenType::Word {
+        if f.typ == TokenType::Word && f.op_typ != InstructionType::MemUse {
             lookup_word(&f.text, &f.loc())
         } else {
             OpType::Instruction(InstructionType::PushInt) // i hate myself, this is a randomly picked optype so its happy and works
@@ -143,7 +200,7 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
             warn!("File import depth maxed out, if the program crashes try reducing the import depth, good luck youll need it");
             break
         }
-        program = expand_macros(program, &macros)?;
+        program = expand(program, &macros, &memories)?;
         times += 1;
     }
 
@@ -151,7 +208,7 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
     Ok(program)
 }
 
-pub fn expand_macros(tokens: Vec<Token>, macros: &HashMap<String, Macro>) -> Result<Vec<Token>> {
+pub fn expand(tokens: Vec<Token>, macros: &Macros, mems: &Memories) -> Result<Vec<Token>> {
     let mut program: Vec<Token> = Vec::new();
 
     let mut rtokens = tokens;
@@ -164,11 +221,17 @@ pub fn expand_macros(tokens: Vec<Token>, macros: &HashMap<String, Macro>) -> Res
             match op_type {
                 OpType::Instruction(InstructionType::None) => {
                     let m = macros.get(&op.text);
-                    if m.is_some() {
-                        if let Some(m) = m {
-                            program.append(&mut m.tokens.clone());
-                        }
-                    } else {
+                    let mem = mems.get(&op.text);
+                    if let Some(m) = m {
+                        program.append(&mut m.tokens.clone());
+                    } else 
+                    if let Some(mem) = mem {
+                        let mut t = op;
+                        t.addr = Some(*mem);
+                        t.op_typ = InstructionType::MemUse;
+                        program.push(t);
+                    }
+                    else {
                         lerror!(&op.loc(), "Unknown word '{}'", op.text.clone());
                         return Err(eyre!(""));
                     }

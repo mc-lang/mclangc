@@ -26,7 +26,7 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
 
     let file = fs::File::create(&of_a)?;
     let mut writer = BufWriter::new(&file);
-
+    let mut memories:  Vec<(usize, usize)> = Vec::new();
     // println!("{}", tokens.len());
     let mut strings: Vec<String> = Vec::new();
 
@@ -373,6 +373,11 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         writeln!(writer, "    push rax")?;
                         ti += 1;
                     },
+                    InstructionType::MemUse => {
+                        writeln!(writer, "    ;; -- MemUse")?;
+                        writeln!(writer, "    push mem_{}", token.addr.unwrap())?;
+                        ti += 1;
+                    },
                     InstructionType::None => unreachable!(),
                     InstructionType::CastBool => ti += 1,
                     InstructionType::CastPtr => ti += 1,
@@ -415,6 +420,10 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         }
                         ti += 1;
                     },
+                    KeywordType::Memory => {
+                        memories.push((token.addr.unwrap(), token.value));
+                        ti += 1;
+                    }
                     KeywordType::Macro |
                     KeywordType::Include
                         => unreachable!()
@@ -432,9 +441,12 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
         let s_list = s_chars.join(",");
         writeln!(writer, "    str_{}: db {} ; {}", i, s_list, s.escape_default())?;
     }
-
+    
     writeln!(writer, "segment .bss")?;
-    writeln!(writer, "mem: resb {}", crate::compile::MEM_SZ)?;
+    for (_, s) in memories.iter().enumerate() {
+        writeln!(writer, "    mem_{}: resb {}", s.0, s.1)?;
+    }
+    writeln!(writer, "    mem: resb {}", crate::compile::MEM_SZ)?;
 
     writer.flush()?;
     linux_x86_64_compile_and_link(&of_a, &of_o, &of_c, args.quiet)?;

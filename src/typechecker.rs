@@ -1,9 +1,15 @@
-use crate::{constants::{Operator, Types, OpType, KeywordType, InstructionType}, Args, lerror};
+use crate::{constants::{Operator, Types, OpType, KeywordType, InstructionType}, Args, lerror, warn};
 use color_eyre::Result;
 use eyre::eyre;
 
 
 pub fn typecheck(ops: &[Operator], args: &Args) -> Result<Vec<Operator>>{
+    if args.unsaf {
+        if !args.quiet {
+            warn!("Unsafe mode enabled, disabling typechecker, goodluck");
+        }
+        return Ok(ops.to_vec());
+    }
 
     let mut stack: Vec<Types> = Vec::new();
 
@@ -14,24 +20,16 @@ pub fn typecheck(ops: &[Operator], args: &Args) -> Result<Vec<Operator>>{
                     KeywordType::If => {
                         stack_pop(&mut stack, &op, &[Types::Bool])?;
                     },
-                    KeywordType::Else => {
-                        
-                    },
-                    KeywordType::End => {
-                        
-                    },
-                    KeywordType::While => {
-                        
-                    },
                     KeywordType::Do => {
                         stack_pop(&mut stack, &op, &[Types::Bool])?;
                     },
-                    KeywordType::Macro => {
 
-                    },
-                    KeywordType::Include => {
-
-                    },
+                    KeywordType::Else |
+                    KeywordType::End |
+                    KeywordType::While |
+                    KeywordType::Macro |
+                    KeywordType::Include |
+                    KeywordType::Memory => (),
                 }
             },
             OpType::Instruction(instruction) => {
@@ -217,6 +215,9 @@ pub fn typecheck(ops: &[Operator], args: &Args) -> Result<Vec<Operator>>{
                     InstructionType::CastInt => {
                         stack_pop(&mut stack, &op, &[Types::Any])?;
                         stack.push(Types::Int);
+                    },
+                    InstructionType::MemUse => {
+                        stack.push(Types::Ptr);
                     },
                     InstructionType::None => {},
                 }

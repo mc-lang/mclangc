@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{constants::{OpType, Loc, InstructionType, KeywordType}, lerror, error};
 // use crate::util::logger;
 use color_eyre::Result;
@@ -16,6 +18,8 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
     let mut ti = 0;
     let mut mem: Vec<u8> = vec![0; crate::compile::MEM_SZ + crate::compile::STRING_SZ];
     let mut string_idx = 0;
+
+    let mut memories: HashMap<usize, usize> = HashMap::new();
     // for token in &tokens {
     //     println!("{{typ: \"{:?}\", val: {}, jmp: {}}}", token.typ, token.value, token.jmp);
 
@@ -100,6 +104,10 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                     }
                     InstructionType::Load8 => {
                         let a = stack_pop(&mut stack, &pos)?;
+                        if a > crate::compile::MEM_SZ {
+                            lerror!(&token.loc, "Invalid memory address {a}");
+                            return Ok(1);
+                        }
                         let byte = mem[a];
                         stack.push(byte as usize);
                         ti += 1;
@@ -108,7 +116,12 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                     InstructionType::Store8 => {
                         let val = stack_pop(&mut stack, &pos)?;
                         let addr = stack_pop(&mut stack, &pos)?;
-        
+                        
+                        if addr > crate::compile::MEM_SZ {
+                            lerror!(&token.loc, "Invalid memory address {addr}");
+                            return Ok(1);
+                        }
+
                         mem[addr] = (val & 0xFF) as u8;
                         ti += 1;
                     }
@@ -246,39 +259,53 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                         todo!();
                         // ti += 1;
                     },
+                    InstructionType::MemUse => {
+
+                        let m = memories.get(&token.addr.unwrap()).unwrap();
+                        stack.push(*m);
+                        ti += 1;
+                    },
                     InstructionType::CastBool => ti += 1,
                     InstructionType::CastPtr => ti += 1,
                     InstructionType::CastInt => ti += 1,
-                    InstructionType::None => unreachable!()
+                    InstructionType::None => unreachable!(),
                 }
 
             }
-
-            // blocks
-            OpType::Keyword(KeywordType::If) => {
-                let a = stack_pop(&mut stack, &pos)?;
-                if a == 0 {
-                    // println!("If({ti}) => t: {:?} j: {}", tokens[token.jmp as usize].typ, token.jmp);
-                    ti = token.jmp;
-                } else {
-                    ti += 1;
+            OpType::Keyword(k) => {
+                match k {
+                    // blocks
+                    KeywordType::If => {
+                        let a = stack_pop(&mut stack, &pos)?;
+                        if a == 0 {
+                            // println!("If({ti}) => t: {:?} j: {}", tokens[token.jmp as usize].typ, token.jmp);
+                            ti = token.jmp;
+                        } else {
+                            ti += 1;
+                        }
+                    },
+                    KeywordType::Else | KeywordType::End => {
+                        ti = token.jmp;
+                    }
+                    KeywordType::While => {
+                        ti += 1;
+                    }
+                    KeywordType::Do => {
+                        let a = stack.pop().unwrap();
+                        if a == 0 {
+                            ti = token.jmp;
+                        } else {
+                            ti += 1;
+                        }
+                    }
+                    KeywordType::Memory => {
+                        memories.insert(token.addr.unwrap(), token.value);
+                        ti += 1;
+                    },
+                    KeywordType::Macro | KeywordType::Include => unreachable!(),
                 }
-            },
-            OpType::Keyword(KeywordType::Else) | OpType::Keyword(KeywordType::End) => {
-                ti = token.jmp;
             }
-            OpType::Keyword(KeywordType::While) => {
-                ti += 1;
-            }
-            OpType::Keyword(KeywordType::Do) => {
-                let a = stack.pop().unwrap();
-                if a == 0 {
-                    ti = token.jmp;
-                } else {
-                    ti += 1;
-                }
-            }
-             | OpType::Keyword(KeywordType::Macro) | OpType::Keyword(KeywordType::Include) => unreachable!()
+            
         }
     }
     
