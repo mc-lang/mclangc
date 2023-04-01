@@ -16,7 +16,7 @@ fn stack_pop(stack: &mut Vec<usize>, pos: &Loc) -> Result<usize> {
 pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
     let mut stack: Vec<usize> = Vec::new();
     let mut ti = 0;
-    let mut mem: Vec<u8> = vec![0; crate::compile::MEM_SZ + crate::compile::STRING_SZ];
+    let mut mem: Vec<u64> = vec![0; crate::compile::MEM_SZ + crate::compile::STRING_SZ];
     let mut string_idx = 0;
 
     let mut memories: HashMap<usize, usize> = HashMap::new();
@@ -41,7 +41,7 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                             stack.push(string_idx + crate::compile::MEM_SZ);
                             
                             for c in token.text.bytes() {
-                                mem[crate::compile::MEM_SZ + string_idx] = c;
+                                mem[crate::compile::MEM_SZ + string_idx] = c as u64;
                                 string_idx += 1;
                             }
                         } else {
@@ -102,7 +102,9 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                         stack.push(0);
                         ti += 1;
                     }
-                    InstructionType::Load8 => {
+                    InstructionType::Load8 |
+                    InstructionType::Load32 |
+                    InstructionType::Load64 => {
                         let a = stack_pop(&mut stack, &pos)?;
                         if a > crate::compile::MEM_SZ {
                             lerror!(&token.loc, "Invalid memory address {a}");
@@ -122,7 +124,34 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                             return Ok(1);
                         }
 
-                        mem[addr] = (val & 0xFF) as u8;
+                        mem[addr] = val as u8 as u64;
+                        ti += 1;
+                    }
+                    #[allow(clippy::cast_possible_truncation)]
+                    InstructionType::Store32 => {
+                        let val = stack_pop(&mut stack, &pos)?;
+                        let addr = stack_pop(&mut stack, &pos)?;
+                        
+                        if addr > crate::compile::MEM_SZ {
+                            lerror!(&token.loc, "Invalid memory address {addr}");
+                            return Ok(1);
+                        }
+
+                        mem[addr] = val as u32 as u64;
+                        ti += 1;
+                    }
+
+                    #[allow(clippy::cast_possible_truncation)]
+                    InstructionType::Store64 => {
+                        let val = stack_pop(&mut stack, &pos)?;
+                        let addr = stack_pop(&mut stack, &pos)?;
+                        
+                        if addr > crate::compile::MEM_SZ {
+                            lerror!(&token.loc, "Invalid memory address {addr}");
+                            return Ok(1);
+                        }
+
+                        mem[addr] = val as u64;
                         ti += 1;
                     }
         

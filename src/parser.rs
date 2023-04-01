@@ -26,6 +26,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
             OpType::Keyword(KeywordType::End) => {
                 let block_ip = stack.pop().unwrap();
 
+
                 if program[block_ip].typ == OpType::Keyword(KeywordType::If) || 
                    program[block_ip].typ == OpType::Keyword(KeywordType::Else) {
                     
@@ -51,6 +52,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
 
     }
     if !stack.is_empty() {
+        println!("{:?}", stack);
         lerror!(&program[stack.pop().expect("Empy stack")].clone().loc,"Unclosed block");
         return Err(eyre!("Unclosed block"));
     }
@@ -149,6 +151,10 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "mem" => OpType::Instruction(InstructionType::Mem),
         "load8" => OpType::Instruction(InstructionType::Load8),
         "store8" => OpType::Instruction(InstructionType::Store8),
+        "load32" => OpType::Instruction(InstructionType::Load32),
+        "store32" => OpType::Instruction(InstructionType::Store32),
+        "load64" => OpType::Instruction(InstructionType::Load64),
+        "store64" => OpType::Instruction(InstructionType::Store64),
         
         "syscall0" => OpType::Instruction(InstructionType::Syscall0),
         "syscall1" => OpType::Instruction(InstructionType::Syscall1),

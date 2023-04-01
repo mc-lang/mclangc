@@ -155,6 +155,22 @@ pub fn typecheck(ops: &[Operator], args: &Args) -> Result<Vec<Operator>>{
                         stack_pop(&mut stack, &op, &[Types::Int])?;
                         stack_pop(&mut stack, &op, &[Types::Ptr])?;
                     },
+                    InstructionType::Load32 => {
+                        stack_pop(&mut stack, &op, &[Types::Ptr])?;
+                        stack.push(Types::Int);
+                    },
+                    InstructionType::Store32 => {
+                        stack_pop(&mut stack, &op, &[Types::Int])?;
+                        stack_pop(&mut stack, &op, &[Types::Ptr])?;
+                    },
+                    InstructionType::Load64 => {
+                        stack_pop(&mut stack, &op, &[Types::Ptr])?;
+                        stack.push(Types::Int);
+                    },
+                    InstructionType::Store64 => {
+                        stack_pop(&mut stack, &op, &[Types::Int])?;
+                        stack_pop(&mut stack, &op, &[Types::Ptr])?;
+                    },
                     InstructionType::Syscall0 => {
                         stack_pop(&mut stack, &op, &[Types::Int])?;
                         stack.push(Types::Int);

@@ -156,7 +156,7 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         writeln!(writer, "    ;; -- load")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    xor rbx, rbx")?;
-                        writeln!(writer, "    mov bl, [rax]")?;
+                        writeln!(writer, "    mov bl, byte [rax]")?;
                         writeln!(writer, "    push rbx")?;
                         ti += 1;
                     }
@@ -165,7 +165,39 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         writeln!(writer, "    ;; -- store")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    pop rax")?;
-                        writeln!(writer, "    mov [rax], bl")?;
+                        writeln!(writer, "    mov byte [rax], bl")?;
+                        ti += 1;
+                    }
+                    InstructionType::Load32 => {
+                        writeln!(writer, "    ;; -- load")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    xor rbx, rbx")?;
+                        writeln!(writer, "    mov bl, dword [rax]")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    }
+        
+                    InstructionType::Store32 => {
+                        writeln!(writer, "    ;; -- store")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    mov dword[rax], bl")?;
+                        ti += 1;
+                    }
+                    InstructionType::Load64 => {
+                        writeln!(writer, "    ;; -- load")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    xor rbx, rbx")?;
+                        writeln!(writer, "    mov bl, qword [rax]")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    }
+        
+                    InstructionType::Store64 => {
+                        writeln!(writer, "    ;; -- store")?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    mov qword [rax], bl")?;
                         ti += 1;
                     }
         

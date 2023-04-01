@@ -122,7 +122,7 @@ pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, args: &Args
     //     println!("tok: {:?}", token.text);
     // }
     if preprocessing {
-        tokens = preprocess(tokens, args)?;
+        (tokens, _) = preprocess(tokens, args)?;
     }
 
     Ok(tokens)

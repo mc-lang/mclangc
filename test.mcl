@@ -1,6 +1,8 @@
+include "compat.mcl"
+__compat__
 memory m 10 end
 
-m 69 store8
+m 69 @8
 
 
 m load8 print

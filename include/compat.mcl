@@ -1,0 +1,5 @@
+macro __compat__ 
+    macro !8 load8 end
+    macro @8 store8 end
+    
+end

@@ -19,7 +19,7 @@ pub struct Macro {
 type Macros = HashMap<String, Macro>;
 type Memories = HashMap<String, usize>;
 
-pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
+pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<(Vec<Token>, Macros)>{
     
 
     let mut program: Vec<Token> = Vec::new();
@@ -57,7 +57,7 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
                 }
 
                 let mut macr = Macro{ loc: macro_name.loc(), tokens: Vec::new() };
-
+                let mut reprocess = false;
                 let mut depth = 0;
                 while !rtokens.is_empty() {
                     let t = rtokens.pop().unwrap();
@@ -67,7 +67,12 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
                     } else if typ == OpType::Keyword(KeywordType::End) && depth != 0 {
                         depth -= 1;
                         macr.tokens.push(t);
-                    } else if typ == OpType::Keyword(KeywordType::If) || typ == OpType::Keyword(KeywordType::Do) {
+                    } else if typ == OpType::Keyword(KeywordType::If) || 
+                                typ == OpType::Keyword(KeywordType::Do) {
+                        macr.tokens.push(t);
+                        depth += 1;
+                    } else if typ == OpType::Keyword(KeywordType::Macro) {
+                        reprocess = true;
                         macr.tokens.push(t);
                         depth += 1;
                     } else {
@@ -75,6 +80,9 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
                     }
                 }
 
+                if reprocess {
+                    (macr.tokens, macros) = preprocess(macr.tokens, args)?;
+                }
 
                 macros.insert(macro_name.text, macr);
 
@@ -205,13 +213,13 @@ pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
     }
 
 
-    Ok(program)
+    Ok((program, macros))
 }
 
 pub fn expand(tokens: Vec<Token>, macros: &Macros, mems: &Memories) -> Result<Vec<Token>> {
     let mut program: Vec<Token> = Vec::new();
 
-    let mut rtokens = tokens;
+    let mut rtokens = tokens.clone();
     rtokens.reverse();
 
     while !rtokens.is_empty() {
@@ -223,7 +231,17 @@ pub fn expand(tokens: Vec<Token>, macros: &Macros, mems: &Memories) -> Result<Ve
                     let m = macros.get(&op.text);
                     let mem = mems.get(&op.text);
                     if let Some(m) = m {
-                        program.append(&mut m.tokens.clone());
+                        // println!("{:#?}", macros);
+                        let mut toks = m.tokens.clone();
+                        // if toks.iter().map(|t| {
+                        //     let w = lookup_word(&t.text, &t.loc());
+                        //     w == OpType::Keyword(KeywordType::Macro)
+                        // }).collect::<Vec<bool>>().contains(&true) {
+                        //     println!("yas");
+                        //     toks = preprocess(toks, args)?;
+                        // }
+                        program.append(&mut toks);
+                        // println!("{:?}", program);
                     } else 
                     if let Some(mem) = mem {
                         let mut t = op;
