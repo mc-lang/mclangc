@@ -54,6 +54,8 @@ pub enum InstructionType {
     CastPtr,
     CastInt,
 
+    FnCall,
+    Return,
     MemUse,
     None // Used for macros and any other non built in word definitions
 
@@ -65,9 +67,10 @@ pub enum KeywordType {
     End,
     While,
     Do,
-    Macro,
     Include,
-    Memory
+    Memory,
+    Constant,
+    Function
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -79,6 +82,7 @@ pub enum OpType {
 #[derive(Debug, Clone)]
 pub struct Operator{
     pub typ: OpType,
+    pub tok_typ: TokenType,
     pub value: usize,
     pub text: String, //? only used for OpType::PushStr
     pub addr: Option<usize>, //? only used for OpType::PushStr
@@ -87,14 +91,15 @@ pub struct Operator{
 }
 
 impl Operator {
-    pub fn new(typ: OpType, value: usize, text: String, file: String, row: usize, col: usize) -> Self {
+    pub fn new(typ: OpType, tok_typ: TokenType, value: usize, text: String, file: String, row: usize, col: usize) -> Self {
         Self {
             typ,
             value,
             jmp: 0,
             addr: None,
             text,
-            loc: (file, row, col)
+            loc: (file, row, col),
+            tok_typ,
         }
     }
     pub fn set_addr(mut self, addr: usize) -> Self {
@@ -151,6 +156,8 @@ impl OpType {
                     InstructionType::CastInt => "cast(int)",
                     InstructionType::MemUse => "MemUse",
                     InstructionType::None => "None",
+                    InstructionType::FnCall => "Function Call",
+                    InstructionType::Return => "return",
                 }
             }
             OpType::Keyword(keyword) => {
@@ -160,9 +167,10 @@ impl OpType {
                     KeywordType::End => "end",
                     KeywordType::While => "while",
                     KeywordType::Do => "do",
-                    KeywordType::Macro => "macro",
                     KeywordType::Include => "include",
-                    KeywordType::Memory => "memory"
+                    KeywordType::Memory => "memory",
+                    KeywordType::Function => "fn",
+                    KeywordType::Constant => "const",
                 }
             }
             
@@ -179,7 +187,7 @@ pub struct Token {
     pub typ: TokenType,
     pub value: Option<usize>, //* only used for Memories
     pub addr: Option<usize>, //* only used for Memories
-    pub op_typ: InstructionType //* only used for Memories
+    pub op_typ: OpType //* only used for Memories
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]

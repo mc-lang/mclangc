@@ -1,8 +1,7 @@
-include "compat.mcl"
-__compat__
-memory m 10 end
+include "std.mcl"
 
-m 69 @8
+fn main do
 
+"henlo" puts
 
-m load8 print
+end

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::{constants::{Operator, OpType, Token, TokenType, Loc, KeywordType, InstructionType}, lerror};
+use crate::{constants::{Operator, OpType, Token, TokenType, Loc, KeywordType, InstructionType}, lerror, preprocessor::preprocess, Args};
 use color_eyre::Result;
 use eyre::eyre;
 
@@ -10,6 +10,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
         let op = &program.clone()[ip];
         match op.typ {
             OpType::Keyword(KeywordType::If) | 
+            OpType::Keyword(KeywordType::Function) | 
             OpType::Keyword(KeywordType::While) => {
                 stack.push(ip);
             }
@@ -36,6 +37,9 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                 } else if program[block_ip].typ == OpType::Keyword(KeywordType::Do) {
                     program[ip].jmp = program[block_ip].jmp;
                     program[block_ip].jmp = ip + 1;
+                } else if program[block_ip].typ == OpType::Keyword(KeywordType::Function) {
+                    program[ip].typ = OpType::Instruction(InstructionType::Return);
+                    program[block_ip].typ = OpType::Keyword(KeywordType::Do);
                 } else {
                     lerror!(&op.clone().loc,"'end' can only close 'if' blocks");
                     return  Err(eyre!(""));
@@ -43,8 +47,14 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
 
             }
             OpType::Keyword(KeywordType::Do) => {
-                let while_ip = stack.pop().unwrap();
-                program[ip].jmp = while_ip;
+                let block_ip = stack.pop().unwrap();
+
+                if program[block_ip].typ == OpType::Keyword(KeywordType::Function) {
+                    program[ip].typ = OpType::Keyword(KeywordType::Function);
+                }
+
+                program[ip].jmp = block_ip;
+                // println!("{}", block_ip);
                 stack.push(ip);
             }
             _ => ()
@@ -71,7 +81,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Operator>> {
+    pub fn parse(&mut self, args: &Args) -> Result<Vec<Operator>> {
         let mut tokens = Vec::new();
 
         for token in &self.tokens {
@@ -81,19 +91,19 @@ impl Parser {
             let pos = (token.file.clone(), token.line, token.col);
             match token.typ {
                 TokenType::Word => {
-                    let word_type = if token.op_typ == InstructionType::MemUse {
+                    let word_type = if token.op_typ == OpType::Instruction(InstructionType::MemUse) {
                         OpType::Instruction(InstructionType::MemUse)
                     } else {
                         lookup_word(&token.text, &pos)
                     };
 
-                    tokens.push(Operator::new(word_type, token.value.unwrap_or(0), token.text.clone(), token.file.clone(), token.line, token.col).set_addr(token.addr.unwrap_or(0)));
+                    tokens.push(Operator::new(word_type, token.typ, token.value.unwrap_or(0), token.text.clone(), token.file.clone(), token.line, token.col).set_addr(token.addr.unwrap_or(0)));
                 },
                 TokenType::Int => {// negative numbers not yet implemented
-                    tokens.push(Operator::new(OpType::Instruction(InstructionType::PushInt), token.text.parse::<usize>()?, String::new(), token.file.clone(), token.line, token.col));
+                    tokens.push(Operator::new(OpType::Instruction(InstructionType::PushInt), token.typ, token.text.parse::<usize>()?, String::new(), token.file.clone(), token.line, token.col));
                 },
                 TokenType::String => {
-                    tokens.push(Operator::new(OpType::Instruction(InstructionType::PushStr), 0, token.text.clone(), token.file.clone(), token.line, token.col));
+                    tokens.push(Operator::new(OpType::Instruction(InstructionType::PushStr), token.typ, 0, token.text.clone(), token.file.clone(), token.line, token.col));
                 }
                 TokenType::Char => {
                     let c = token.text.clone();
@@ -102,7 +112,7 @@ impl Parser {
                         return Err(eyre!(""));
                     }
 
-                    tokens.push(Operator::new(OpType::Instruction(InstructionType::PushInt), token.text.chars().next().unwrap() as usize, String::new(), token.file.clone(), token.line, token.col));
+                    tokens.push(Operator::new(OpType::Instruction(InstructionType::PushInt), token.typ, token.text.chars().next().unwrap() as usize, String::new(), token.file.clone(), token.line, token.col));
                 }
             };
 
@@ -110,7 +120,10 @@ impl Parser {
             //"print" => tokens.push(Operator::new(OpType::Print, 0, token.file.clone(), token.line, token.col)),
         }
 
-        cross_ref(tokens)
+        
+        tokens = cross_ref(tokens.clone())?;
+        let t = preprocess(tokens, args)?;
+        Ok(t.0)
     }
 }
 
@@ -172,9 +185,10 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "end" => OpType::Keyword(KeywordType::End),
         "while" => OpType::Keyword(KeywordType::While),
         "do" => OpType::Keyword(KeywordType::Do),
-        "macro" => OpType::Keyword(KeywordType::Macro),
         "include" => OpType::Keyword(KeywordType::Include),
         "memory" => OpType::Keyword(KeywordType::Memory),
+        "const" => OpType::Keyword(KeywordType::Constant),
+        "fn" => OpType::Keyword(KeywordType::Function),
         _ => OpType::Instruction(InstructionType::None)
     }
 

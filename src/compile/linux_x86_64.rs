@@ -69,11 +69,14 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
 
     writeln!(writer, "global _start")?;
     writeln!(writer, "_start:")?;
+    writeln!(writer, "    call func_main")?;
+    writeln!(writer, "    jmp end")?;
+
 
     let mut ti = 0;
     while ti < tokens.len() {
         let token = &tokens[ti];
-
+        println!("{:?}", token);
         writeln!(writer, "addr_{ti}:")?;
         match token.typ.clone() {
             // stack
@@ -414,6 +417,16 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                     InstructionType::CastBool => ti += 1,
                     InstructionType::CastPtr => ti += 1,
                     InstructionType::CastInt => ti += 1,
+                    InstructionType::FnCall => {
+                        writeln!(writer, "    ;; -- FnCall")?;
+                        writeln!(writer, "    call func_{}", token.text)?;
+                        ti += 1;
+                    },
+                    InstructionType::Return => {
+                        writeln!(writer, "    ;; -- Return")?;
+                        writeln!(writer, "    ret")?;
+                        ti += 1;
+                    },
                 }
             }
 
@@ -456,14 +469,18 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         memories.push((token.addr.unwrap(), token.value));
                         ti += 1;
                     }
-                    KeywordType::Macro |
-                    KeywordType::Include
-                        => unreachable!()
+                    KeywordType::Include => unreachable!(),
+                    KeywordType::Constant => todo!(),
+                    KeywordType::Function => {
+                        writeln!(writer, "func_{}:", token.text)?;
+                        ti += 1;
+                    },
                 }
             }
         }
     }
     writeln!(writer, "addr_{ti}:")?;
+    writeln!(writer, "end:")?;
     writeln!(writer, "    mov rax, 60")?;
     writeln!(writer, "    mov rdi, 0")?;
     writeln!(writer, "    syscall")?;

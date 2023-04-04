@@ -70,14 +70,14 @@ fn main() {
         return;
         
     };
-    let Ok(tokens) = lexer::lex(&code, &args.in_file, &args, true) else {
+    let Ok(tokens) = lexer::lex(&code, &args.in_file, &args) else {
         error!("Lexing failed, exiting!");
         return;
     };
 
     
     let mut parser = parser::Parser::new(tokens);
-    let Ok(tokens) = parser.parse() else {
+    let Ok(tokens) = parser.parse(&args) else {
         error!("Parsing failed, exiting!");
         return;
     };

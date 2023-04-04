@@ -89,7 +89,7 @@ fn lex_line(text: &str) -> Vec<(usize, String, TokenType)> {
     tokens
 }
 
-pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, args: &Args, preprocessing: bool) -> Result<Vec<Token>> {
+pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, args: &Args) -> Result<Vec<Token>> {
     let lines: Vec<(usize, &str)> = code
         .split(['\n', '\r'])
         .enumerate()
@@ -111,7 +111,7 @@ pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, args: &Args
                 typ: tok_type,
                 value: None,
                 addr: None,
-                op_typ: crate::constants::InstructionType::None
+                op_typ: crate::constants::OpType::Instruction(crate::constants::InstructionType::None)
             };
             tokens.push(t);
         }
@@ -121,9 +121,7 @@ pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, args: &Args
     // for token in tokens.clone() {
     //     println!("tok: {:?}", token.text);
     // }
-    if preprocessing {
-        (tokens, _) = preprocess(tokens, args)?;
-    }
+    
 
     Ok(tokens)
 }

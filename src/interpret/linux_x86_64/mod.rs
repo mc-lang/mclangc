@@ -298,6 +298,8 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                     InstructionType::CastPtr => ti += 1,
                     InstructionType::CastInt => ti += 1,
                     InstructionType::None => unreachable!(),
+                    InstructionType::FnCall => todo!(),
+                    InstructionType::Return => todo!(),
                 }
 
             }
@@ -331,7 +333,9 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                         memories.insert(token.addr.unwrap(), token.value);
                         ti += 1;
                     },
-                    KeywordType::Macro | KeywordType::Include => unreachable!(),
+                    KeywordType::Include => unreachable!(),
+                    KeywordType::Constant => todo!(),
+                    KeywordType::Function => todo!(),
                 }
             }
             

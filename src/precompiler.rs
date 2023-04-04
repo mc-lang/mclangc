@@ -2,7 +2,7 @@
 use color_eyre::Result;
 use eyre::eyre;
 
-use crate::{constants::{Token, OpType, InstructionType, Loc}, parser::lookup_word, lerror};
+use crate::{constants::{Token, OpType, InstructionType, Loc, Operator}, parser::lookup_word, lerror};
 
 fn stack_pop(stack: &mut Vec<usize>, loc: &Loc) -> Result<usize> {
     if let Some(i) = stack.pop() { Ok(i) } else {
@@ -11,21 +11,20 @@ fn stack_pop(stack: &mut Vec<usize>, loc: &Loc) -> Result<usize> {
     }
 }
 
-pub fn precompile(tokens: &Vec<Token>) -> Result<Vec<usize>>{
+pub fn precompile(tokens: &Vec<Operator>) -> Result<Vec<usize>>{
 
     let mut stack: Vec<usize> = Vec::new();
 
     for token in tokens.iter() {
-        let typ = lookup_word(&token.text, &token.loc());
-        match typ {
+        match token.typ.clone() {
             OpType::Instruction(i) => {
-                let loc = token.loc();
+                let loc = token.loc.clone();
                 match i {
                     InstructionType::PushInt => {
                         if let Ok(i) = token.text.parse::<usize>() {
                             stack.push(i);
                         } else {
-                            lerror!(&token.loc(), "Bad number");
+                            lerror!(&token.loc, "Bad number");
                             return Err(eyre!(""));
                         }
                     },
@@ -136,14 +135,14 @@ pub fn precompile(tokens: &Vec<Token>) -> Result<Vec<usize>>{
                         stack.push(b);
                     }
                     _ => {
-                        lerror!(&token.loc(), "Unsupported precompiler instruction {:?}", i);
+                        lerror!(&token.loc, "Unsupported precompiler instruction {:?}", i);
                         dbg!(tokens);
                         return Err(eyre!(""));
                     }
                 }
             }
             _ => {
-                lerror!(&token.loc(), "Unsupported precompiler keyword {:?}", typ);
+                lerror!(&token.loc, "Unsupported precompiler keyword {:?}", token.typ);
                 dbg!(tokens);
                 return Err(eyre!(""));
             }

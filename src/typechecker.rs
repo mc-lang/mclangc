@@ -27,8 +27,9 @@ pub fn typecheck(ops: &[Operator], args: &Args) -> Result<Vec<Operator>>{
                     KeywordType::Else |
                     KeywordType::End |
                     KeywordType::While |
-                    KeywordType::Macro |
+                    KeywordType::Function |
                     KeywordType::Include |
+                    KeywordType::Constant |
                     KeywordType::Memory => (),
                 }
             },
@@ -235,6 +236,8 @@ pub fn typecheck(ops: &[Operator], args: &Args) -> Result<Vec<Operator>>{
                     InstructionType::MemUse => {
                         stack.push(Types::Ptr);
                     },
+                    InstructionType::FnCall |
+                    InstructionType::Return |
                     InstructionType::None => {},
                 }
             },

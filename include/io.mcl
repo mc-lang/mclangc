@@ -5,7 +5,7 @@
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @arg fd: Int - file descriptor
 // @ret Int
-macro write
+fn write do
     SYS_write syscall3
 end
 
@@ -15,7 +15,7 @@ end
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @arg fd: Int - file descriptor
 // @ret Int
-macro read
+fn read do
     SYS_read syscall3
 end
 
@@ -25,7 +25,7 @@ end
 // @arg buff_size: Int - number of bytes to write
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @ret NULL
-macro puts
+fn puts do
     STDOUT write drop
 end
 
@@ -34,7 +34,7 @@ end
 // @arg buff_size: Int - number of bytes to write
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @ret NULL
-macro eputs
+fn eputs do
     STDOUT write drop
 end
 
@@ -44,7 +44,7 @@ end
 // args: [exit_code]
 // @arg exit_code: Int
 // @ret NULL/NEVER
-macro exit
+fn exit do
     SYS_exit syscall1 drop
 end
 
