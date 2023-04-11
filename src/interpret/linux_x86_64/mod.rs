@@ -96,12 +96,6 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                         // let _ = io::stdout().flush();
                         ti += 1;
                     },
-                    // mem
-        
-                    InstructionType::Mem => {
-                        stack.push(0);
-                        ti += 1;
-                    }
                     InstructionType::Load8 |
                     InstructionType::Load32 |
                     InstructionType::Load64 => {
@@ -294,12 +288,22 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                         stack.push(*m);
                         ti += 1;
                     },
-                    InstructionType::CastBool => ti += 1,
-                    InstructionType::CastPtr => ti += 1,
-                    InstructionType::CastInt => ti += 1,
+                    InstructionType::CastBool |
+                    InstructionType::CastPtr |
+                    InstructionType::CastInt |
+                    InstructionType::FnCall |
+                    InstructionType::Return |
+                    InstructionType::CastVoid |
+                    InstructionType::TypeBool |
+                    InstructionType::TypePtr |
+                    InstructionType::TypeInt |
+                    InstructionType::TypeVoid |
+                    InstructionType::TypeStr |
+                    InstructionType::TypeAny |
+                    InstructionType::Returns |
+                    InstructionType::With => ti += 1,
                     InstructionType::None => unreachable!(),
-                    InstructionType::FnCall => todo!(),
-                    InstructionType::Return => todo!(),
+                    InstructionType::ConstUse => todo!(),
                 }
 
             }
@@ -336,6 +340,7 @@ pub fn run(tokens: &[crate::constants::Operator]) -> Result<i32>{
                     KeywordType::Include => unreachable!(),
                     KeywordType::Constant => todo!(),
                     KeywordType::Function => todo!(),
+                    KeywordType::FunctionDo => todo!(),
                 }
             }
             

@@ -1,7 +1,5 @@
 include "std.mcl"
 
-fn main do
-
-"henlo" puts
-
+fn main with void returns void do
+    69 putd
 end

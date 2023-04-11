@@ -5,7 +5,7 @@
 // @arg str_len: Int
 // @arg str_ptr: Ptr
 // @ret NULL/NEVER
-macro assert
+fn assert with bool int ptr returns null do
     rot
     if else
     "Assert failed: \"" eputs eputs

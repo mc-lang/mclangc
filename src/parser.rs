@@ -1,11 +1,12 @@
 use std::ops::Deref;
 
-use crate::{constants::{Operator, OpType, Token, TokenType, Loc, KeywordType, InstructionType}, lerror, preprocessor::preprocess, Args};
+use crate::{constants::{Operator, OpType, Token, TokenType, Loc, KeywordType, InstructionType}, lerror, preprocessor::Preprocessor, Args};
 use color_eyre::Result;
 use eyre::eyre;
 
 pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
     let mut stack: Vec<usize> = Vec::new();
+
     for ip in 0..program.len() {
         let op = &program.clone()[ip];
         match op.typ {
@@ -15,9 +16,12 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                 stack.push(ip);
             }
             OpType::Keyword(KeywordType::Else) => {
-                let if_ip = stack.pop().unwrap();
+                let if_ip = if let Some(x) = stack.pop() { x } else {
+                    lerror!(&op.loc, "Unclosed-if else block");
+                    return Err(eyre!("Cross referencing"));
+                };
                 if program[if_ip].typ != OpType::Keyword(KeywordType::If) {
-                    lerror!(&op.clone().loc,"'end' can only close 'if' blocks");
+                    lerror!(&op.clone().loc,"'else' can only close 'if' blocks");
                     return Err(eyre!("Bad block"));
                 }
                 
@@ -25,36 +29,48 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                 stack.push(ip);
             },
             OpType::Keyword(KeywordType::End) => {
-                let block_ip = stack.pop().unwrap();
+                let block_ip = if let Some(block_ip) = stack.pop() { block_ip } else {
+                    lerror!(&op.loc, "Unclosed if, if-else, while-do, function, memory, or constant");
+                    return Err(eyre!("Cross referencing"));
+                };
 
+                match &program[block_ip].typ {
+                    OpType::Keyword(KeywordType::If) |
+                    OpType::Keyword(KeywordType::Else) => {
+                        program[block_ip].jmp = ip;
+                        program[ip].jmp = ip + 1;
+                    }
 
-                if program[block_ip].typ == OpType::Keyword(KeywordType::If) || 
-                   program[block_ip].typ == OpType::Keyword(KeywordType::Else) {
-                    
-                    program[block_ip].jmp = ip;
-                    program[ip].jmp = ip + 1;
+                    OpType::Keyword(KeywordType::Do) => {
+                        program[ip].jmp = program[block_ip].jmp;
+                        program[block_ip].jmp = ip + 1;
+                    }
+                    OpType::Keyword(KeywordType::FunctionDo) => {
+                        program[ip].typ = OpType::Instruction(InstructionType::Return);
+                    }
+                    OpType::Keyword(KeywordType::Memory) |
+                    OpType::Keyword(KeywordType::Function) |
+                    OpType::Keyword(KeywordType::Constant) => (),
 
-                } else if program[block_ip].typ == OpType::Keyword(KeywordType::Do) {
-                    program[ip].jmp = program[block_ip].jmp;
-                    program[block_ip].jmp = ip + 1;
-                } else if program[block_ip].typ == OpType::Keyword(KeywordType::Function) {
-                    program[ip].typ = OpType::Instruction(InstructionType::Return);
-                    program[block_ip].typ = OpType::Keyword(KeywordType::Do);
-                } else {
-                    lerror!(&op.clone().loc,"'end' can only close 'if' blocks");
-                    return  Err(eyre!(""));
+                    a => {
+                        println!("{a:?}");
+                        lerror!(&op.clone().loc,"'end' can only close if, if-else, while-do, function, memory, or constant blocks");
+                        return  Err(eyre!(""));
+                    }
                 }
 
             }
             OpType::Keyword(KeywordType::Do) => {
-                let block_ip = stack.pop().unwrap();
+                let block_ip = if let Some(x) = stack.pop() { x } else {
+                    lerror!(&op.loc, "Unclosed while-do block");
+                    return Err(eyre!("Cross referencing"));
+                };
 
                 if program[block_ip].typ == OpType::Keyword(KeywordType::Function) {
-                    program[ip].typ = OpType::Keyword(KeywordType::Function);
+                    program[ip].typ = OpType::Keyword(KeywordType::FunctionDo);
                 }
 
                 program[ip].jmp = block_ip;
-                // println!("{}", block_ip);
                 stack.push(ip);
             }
             _ => ()
@@ -63,7 +79,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
     }
     if !stack.is_empty() {
         println!("{:?}", stack);
-        lerror!(&program[stack.pop().expect("Empy stack")].clone().loc,"Unclosed block");
+        lerror!(&program[stack.pop().expect("Empy stack")].clone().loc,"Unclosed block, {:?}", program[stack.pop().expect("Empy stack")].clone());
         return Err(eyre!("Unclosed block"));
     }
 
@@ -116,14 +132,13 @@ impl Parser {
                 }
             };
 
-            
-            //"print" => tokens.push(Operator::new(OpType::Print, 0, token.file.clone(), token.line, token.col)),
+
         }
 
-        
-        tokens = cross_ref(tokens.clone())?;
-        let t = preprocess(tokens, args)?;
-        Ok(t.0)
+        let t = Preprocessor::new(tokens.clone(), args).preprocess()?.get_ops();
+        let t = cross_ref(t.clone())?;
+
+        Ok(t)
     }
 }
 
@@ -161,7 +176,6 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         
         
         // mem
-        "mem" => OpType::Instruction(InstructionType::Mem),
         "load8" => OpType::Instruction(InstructionType::Load8),
         "store8" => OpType::Instruction(InstructionType::Store8),
         "load32" => OpType::Instruction(InstructionType::Load32),
@@ -176,9 +190,10 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "syscall4" => OpType::Instruction(InstructionType::Syscall4),
         "syscall5" => OpType::Instruction(InstructionType::Syscall5),
         "syscall6" => OpType::Instruction(InstructionType::Syscall6),
-        "cast(bool" => OpType::Instruction(InstructionType::CastBool),
+        "cast(bool)" => OpType::Instruction(InstructionType::CastBool),
         "cast(ptr)" => OpType::Instruction(InstructionType::CastPtr),
         "cast(int)" => OpType::Instruction(InstructionType::CastInt),
+        "cast(void)" => OpType::Instruction(InstructionType::CastVoid),
         // block
         "if" => OpType::Keyword(KeywordType::If),
         "else" => OpType::Keyword(KeywordType::Else),
@@ -189,6 +204,15 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "memory" => OpType::Keyword(KeywordType::Memory),
         "const" => OpType::Keyword(KeywordType::Constant),
         "fn" => OpType::Keyword(KeywordType::Function),
+        "return" => OpType::Instruction(InstructionType::Return),
+        "returns" => OpType::Instruction(InstructionType::Returns),
+        "bool" => OpType::Instruction(InstructionType::TypeBool),
+        "int" => OpType::Instruction(InstructionType::TypeInt),
+        "ptr" => OpType::Instruction(InstructionType::TypePtr),
+        "void" => OpType::Instruction(InstructionType::TypeVoid),
+        "any" => OpType::Instruction(InstructionType::TypeAny),
+        "str" => OpType::Instruction(InstructionType::TypeStr),
+        "with" => OpType::Instruction(InstructionType::With),
         _ => OpType::Instruction(InstructionType::None)
     }
 

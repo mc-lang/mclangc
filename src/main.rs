@@ -53,8 +53,12 @@ pub struct Args {
 
     /// Unsafe mode, disables typechecking
     #[arg(long="unsafe", default_value_t = false)]
-    unsaf: bool
+    unsaf: bool,
     
+    /// Optimisation level, available levels: 'D': debug, '0': No optimisations
+    #[arg(long, short='O', default_value_t=String::from("0"))]
+    optimisation: String,
+
     //#[arg(long, short='F')]
     //features: Vec<String>,
 
@@ -82,7 +86,7 @@ fn main() {
         return;
     };
 
-    let Ok(tokens) = typechecker::typecheck(&tokens, &args) else {
+    let Ok(tokens) = typechecker::typecheck(tokens, &args) else {
         error!("Typechecking failed, exiting!");
         return;
     };

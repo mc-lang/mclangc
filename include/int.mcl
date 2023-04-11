@@ -1,16 +1,16 @@
-macro NULL 0 end
-macro false 0 end
-macro true 1 end
+const NULL 0 end
+const false 0 end
+const true 1 end
 
-macro div divmod drop end
-macro mod divmod swap drop end
-macro / div end
-macro % mod end
+fn div with int int returns int int divmod drop end
+fn mod with int int returns int int divmod swap drop end
+fn / with int int returns int int div end
+fn % with int int returns int int mod end
 
-macro 2dup over over end
-macro 2drop drop drop end
+fn 2dup with any any returns any over over end
+fn 2drop with any any returns any drop drop end
 
-macro sizeof(u64) 8 end
-macro sizeof(u32) 4 end
-macro sizeof(u16) 2 end
-macro sizeof(u8)  1 end
+const sizeof(u64) 8 end
+const sizeof(u32) 4 end
+const sizeof(u16) 2 end
+const sizeof(u8)  1 end

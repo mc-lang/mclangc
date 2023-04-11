@@ -2,7 +2,7 @@
 use color_eyre::Result;
 use eyre::eyre;
 
-use crate::{constants::{Token, OpType, InstructionType, Loc, Operator}, parser::lookup_word, lerror};
+use crate::{constants::{ OpType, InstructionType, Loc, Operator}, lerror};
 
 fn stack_pop(stack: &mut Vec<usize>, loc: &Loc) -> Result<usize> {
     if let Some(i) = stack.pop() { Ok(i) } else {
@@ -14,19 +14,13 @@ fn stack_pop(stack: &mut Vec<usize>, loc: &Loc) -> Result<usize> {
 pub fn precompile(tokens: &Vec<Operator>) -> Result<Vec<usize>>{
 
     let mut stack: Vec<usize> = Vec::new();
-
     for token in tokens.iter() {
         match token.typ.clone() {
             OpType::Instruction(i) => {
                 let loc = token.loc.clone();
                 match i {
                     InstructionType::PushInt => {
-                        if let Ok(i) = token.text.parse::<usize>() {
-                            stack.push(i);
-                        } else {
-                            lerror!(&token.loc, "Bad number");
-                            return Err(eyre!(""));
-                        }
+                        stack.push(token.value);
                     },
                     InstructionType::Plus => {
                         let a = stack_pop(&mut stack, &loc)?;

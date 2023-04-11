@@ -1,5 +1,4 @@
 
-pub const ALLOW_MACRO_REDEFINITION: bool = true;
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -33,7 +32,6 @@ pub enum InstructionType {
 
 
     // mem
-    Mem,
     Load8,
     Store8,
     Load32,
@@ -53,10 +51,23 @@ pub enum InstructionType {
     CastBool,
     CastPtr,
     CastInt,
+    CastVoid,
+
+    // typing
+    TypeBool,
+    TypePtr,
+    TypeInt,
+    TypeVoid,
+    TypeStr,
+    TypeAny,
+    Returns,
+    With,
 
     FnCall,
-    Return,
     MemUse,
+    ConstUse,
+
+    Return,
     None // Used for macros and any other non built in word definitions
 
 }
@@ -70,7 +81,8 @@ pub enum KeywordType {
     Include,
     Memory,
     Constant,
-    Function
+    Function,
+    FunctionDo
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -137,7 +149,6 @@ impl OpType {
                     InstructionType::Shl => "shl",
                     InstructionType::DivMod => "divmod",
                     InstructionType::Mul => "*",
-                    InstructionType::Mem => "mem",
                     InstructionType::Load8 => "load8",
                     InstructionType::Store8 => "store8",
                     InstructionType::Load32 => "load32",
@@ -154,10 +165,20 @@ impl OpType {
                     InstructionType::CastBool => "cast(bool",
                     InstructionType::CastPtr => "cast(ptr)",
                     InstructionType::CastInt => "cast(int)",
-                    InstructionType::MemUse => "MemUse",
+                    InstructionType::CastVoid => "cast(void)",
                     InstructionType::None => "None",
-                    InstructionType::FnCall => "Function Call",
+                    InstructionType::MemUse => "Memory use (internal)",
+                    InstructionType::FnCall => "Function Call (Internal)",
+                    InstructionType::ConstUse => "Constant Use (Internal)",
                     InstructionType::Return => "return",
+                    InstructionType::TypeBool => "bool",
+                    InstructionType::TypePtr => "ptr",
+                    InstructionType::TypeInt => "int",
+                    InstructionType::TypeVoid => "void",
+                    InstructionType::TypeStr => "str",
+                    InstructionType::Returns => "returns",
+                    InstructionType::With => "with",
+                    InstructionType::TypeAny => "any",
                 }
             }
             OpType::Keyword(keyword) => {
@@ -171,6 +192,7 @@ impl OpType {
                     KeywordType::Memory => "memory",
                     KeywordType::Function => "fn",
                     KeywordType::Constant => "const",
+                    KeywordType::FunctionDo => "do",
                 }
             }
             
@@ -226,6 +248,8 @@ pub enum Types {
     Bool,
     Ptr,
     Int,
+    Void,
+    Str,
     Any
     // U8,
     // U16,
