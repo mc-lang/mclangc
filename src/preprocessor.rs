@@ -1,255 +1,475 @@
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::path::{PathBuf, Path};
+
 
 use color_eyre::Result;
 use eyre::eyre;
 
-use crate::constants::{Token, Loc, OpType, TokenType, KeywordType, InstructionType};
+use crate::constants::{Loc, OpType, TokenType, KeywordType, InstructionType, Operator};
 use crate::lexer::lex;
 use crate::precompiler::precompile;
-use crate::{lerror, lnote, Args, warn, linfo};
+use crate::{lerror, Args, warn, linfo, parser};
 use crate::parser::lookup_word;
 
-#[derive(Debug)]
-pub struct Macro {
+
+
+#[derive(Debug, Clone)]
+pub struct Function {
     pub loc: Loc,
-    pub tokens: Vec<Token>
+    pub name: String
 }
 
-type Macros = HashMap<String, Macro>;
-type Memories = HashMap<String, usize>;
+#[derive(Debug, Clone)]
+pub struct Constant {
+    pub loc: Loc,
+    pub name: String
+}
 
-pub fn preprocess(tokens: Vec<Token>, args: &Args) -> Result<Vec<Token>>{
+#[derive(Debug, Clone)]
+pub struct Memory {
+    pub loc: Loc,
+    pub id: usize
     
-
-    let mut program: Vec<Token> = Vec::new();
-    let mut macros: Macros = HashMap::new();
-    let mut memories: Memories = HashMap::new();
-
-    let mut rtokens = tokens;
-    rtokens.reverse();
-    while !rtokens.is_empty() {
-        let mut token = rtokens.pop().unwrap();
-        
-        let op_type = lookup_word(&token.text, &token.loc());
-        match token.clone() {
-            _ if op_type == OpType::Keyword(KeywordType::Macro) => {
-                if rtokens.is_empty(){
-                    lerror!(&token.loc(), "Macro name not found, expected {} but found nothing", TokenType::Word.human());
-                    return Err(eyre!(""));
-                }
-                let macro_name = rtokens.pop().unwrap();
-
-                if macro_name.typ != TokenType::Word {
-                    lerror!(&macro_name.loc(), "Bad macro name, expected {} but found {}", TokenType::Word.human(), macro_name.typ.human());
-                    return Err(eyre!(""));
-                }
-                let word = lookup_word(&macro_name.text, &macro_name.loc());
-                if word != OpType::Instruction(InstructionType::None) {
-                    lerror!(&macro_name.loc(), "Macro name cannot be a built in word, got '{}'", word.human());
-                    return Err(eyre!(""));
-                }
-
-                if macros.get(&macro_name.text.clone()).is_some() && crate::constants::ALLOW_MACRO_REDEFINITION {
-                    lerror!(&macro_name.loc(), "Macro redefinition is not allowed");
-                    lnote!(&macros.get(&macro_name.text).unwrap().loc, "First definition here");
-                    return Err(eyre!(""));
-                }
-
-                let mut macr = Macro{ loc: macro_name.loc(), tokens: Vec::new() };
-
-                let mut depth = 0;
-                while !rtokens.is_empty() {
-                    let t = rtokens.pop().unwrap();
-                    let typ = lookup_word(&t.text, &t.loc());
-                    if typ == OpType::Keyword(KeywordType::End) && depth == 0 {
-                        break;
-                    } else if typ == OpType::Keyword(KeywordType::End) && depth != 0 {
-                        depth -= 1;
-                        macr.tokens.push(t);
-                    } else if typ == OpType::Keyword(KeywordType::If) || typ == OpType::Keyword(KeywordType::Do) {
-                        macr.tokens.push(t);
-                        depth += 1;
-                    } else {
-                        macr.tokens.push(t);
-                    }
-                }
-
-
-                macros.insert(macro_name.text, macr);
-
-
-            }
-
-            _ if op_type == OpType::Keyword(KeywordType::Include) => {
-                if rtokens.is_empty() {
-                    lerror!(&token.loc(), "Include path not found, expected {} but found nothing", TokenType::String.human());
-                    return Err(eyre!(""));
-                }
-
-                let include_path = rtokens.pop().unwrap();
-
-                if include_path.typ != TokenType::String {
-                    lerror!(&include_path.loc(), "Bad include path, expected {} but found {}", TokenType::String.human(), include_path.typ.human());
-                    return Err(eyre!(""));
-                }
-
-                let mut in_paths = args.include.clone();
-                in_paths.append(&mut crate::DEFAULT_INCLUDES.to_vec().clone().iter().map(|f| (*f).to_string()).collect::<Vec<String>>());
-                
-                let mut include_code = String::new();
-                
-                if include_path.text.chars().collect::<Vec<char>>()[0] == '.' {
-                    let p = Path::new(include_path.file.as_str());
-                    let p = p.parent().unwrap();
-                    let p = p.join(&include_path.text);
-                    include_code = std::fs::read_to_string(p)?;
-                } else {   
-                    for path in in_paths {
-                        let p = PathBuf::from(path);
-                        let p = p.join(&include_path.text);
-                        
-                        if p.exists() {
-                            include_code = std::fs::read_to_string(p)?;
-                        }
-                        
-                    }
-                }
-
-                if include_code.is_empty() {
-                    lerror!(&include_path.loc(), "Include file in path '{}' was not found or is empty", include_path.text);
-                    return Err(eyre!(""));
-                }
-
-                let mut code = lex(&include_code, &include_path.text, args, false)?;
-                code.reverse();
-                rtokens.append(&mut code);
-
-
-            }
-            _ if op_type == OpType::Keyword(KeywordType::Memory) => {
-                if rtokens.is_empty() {
-                    lerror!(&token.loc(), "Memory name not found, expected {} but found nothing", TokenType::String.human());
-                    return Err(eyre!(""));
-                }
-
-                let memory_name = rtokens.pop().unwrap();
-
-                if memory_name.typ != TokenType::Word {
-                    lerror!(&memory_name.loc(), "Bad memory name, expected {} but found {}", TokenType::Word.human(), memory_name.typ.human());
-                    return Err(eyre!(""));
-                }
-
-                if macros.get(&memory_name.text).is_some() {
-                    lerror!(&memory_name.loc(), "Memory name cannot replace macro name, got {}", memory_name.text);
-                    let m = macros.get(&memory_name.text).unwrap();
-                    linfo!(&m.loc, "Macro found here");
-                    return Err(eyre!(""));
-                }
-
-                let mut code: Vec<Token> = Vec::new();
-
-                let mut depth = 0;
-                while !rtokens.is_empty() {
-                    let t = rtokens.pop().unwrap();
-                    let typ = lookup_word(&t.text, &t.loc());
-                    if typ == OpType::Keyword(KeywordType::End) && depth == 0 {
-                        break;
-                    } else if typ == OpType::Keyword(KeywordType::End) && depth != 0 {
-                        depth -= 1;
-                        code.push(t);
-                    } else if typ == OpType::Keyword(KeywordType::If) || typ == OpType::Keyword(KeywordType::Do) {
-                        code.push(t);
-                        depth += 1;
-                    } else {
-                        code.push(t);
-                    }
-                }
-                let res = precompile(&code)?;
-
-                if res.len() != 1 {
-                    lerror!(&token.loc(), "Expected 1 number, got {:?}", res);
-                    return Err(eyre!(""));
-                }
-                token.value = Some(res[0]);
-                token.addr = Some(memories.len());
-                program.push(token);
-
-                memories.insert(memory_name.text, memories.len());
-
-            }
-            _ => {
-                program.push(token);
-            }
-        }
-    }
-
-    //* Feel free to fix this horrifying shit
-    //* i wanna kms
-    let mut times = 0;
-    while program.iter().map(|f| {
-        if f.typ == TokenType::Word && f.op_typ != InstructionType::MemUse {
-            lookup_word(&f.text, &f.loc())
-        } else {
-            OpType::Instruction(InstructionType::PushInt) // i hate myself, this is a randomly picked optype so its happy and works
-        }
-
-    }).collect::<Vec<OpType>>().contains(&OpType::Instruction(InstructionType::None)){
-
-        if times >= 50 {
-            warn!("File import depth maxed out, if the program crashes try reducing the import depth, good luck youll need it");
-            break
-        }
-        program = expand(program, &macros, &memories)?;
-        times += 1;
-    }
-
-
-    Ok(program)
 }
 
-pub fn expand(tokens: Vec<Token>, macros: &Macros, mems: &Memories) -> Result<Vec<Token>> {
-    let mut program: Vec<Token> = Vec::new();
+type Functions = HashMap<String, Function>;
+type Memories = HashMap<String, Memory>;
+type Constants = HashMap<String, Constant>;
 
-    let mut rtokens = tokens;
-    rtokens.reverse();
+#[derive(Debug, Clone)]
+pub struct Preprocessor<'a> {
+    pub program: Vec<Operator>,
+    pub functions: Functions,
+    pub memories: Memories,
+    pub constants: Constants,
+    args: &'a Args
+}
 
-    while !rtokens.is_empty() {
-        let op = rtokens.pop().unwrap();
-        let op_type = lookup_word(&op.text, &op.loc());
-        if op.typ == TokenType::Word {
-            match op_type {
-                OpType::Instruction(InstructionType::None) => {
-                    let m = macros.get(&op.text);
-                    let mem = mems.get(&op.text);
-                    if let Some(m) = m {
-                        program.append(&mut m.tokens.clone());
-                    } else 
-                    if let Some(mem) = mem {
-                        let mut t = op;
-                        t.addr = Some(*mem);
-                        t.op_typ = InstructionType::MemUse;
-                        program.push(t);
-                    }
-                    else {
-                        lerror!(&op.loc(), "Unknown word '{}'", op.text.clone());
+
+impl<'a> Preprocessor<'a> {
+    pub fn new(prog: Vec<Operator>, args: &'a Args) -> Self {
+        Self {
+            program: prog,
+            args,
+            functions: HashMap::new(),
+            memories: HashMap::new(),
+            constants: HashMap::new(),
+        }
+    }
+
+
+    pub fn preprocess(&mut self) -> Result<&mut Preprocessor<'a>>{
+        // println!("pre: has do tokens: {:?}", self.program.iter().map(|t| if t.typ == OpType::Keyword(KeywordType::Do) {Some(t)} else {None} ).collect::<Vec<Option<&Operator>>>());
+        
+        let mut program: Vec<Operator> = Vec::new();
+
+        let mut rtokens = self.program.clone();
+        rtokens.reverse();
+        while !rtokens.is_empty() {
+            let mut token = rtokens.pop().unwrap();
+            // println!("{token:?}");
+            let op_type = token.typ.clone();
+            match token.clone() {
+                
+
+                _ if op_type == OpType::Keyword(KeywordType::Include) => {
+                    if rtokens.is_empty() {
+                        lerror!(&token.loc, "Include path not found, expected {} but found nothing", TokenType::String.human());
                         return Err(eyre!(""));
                     }
+
+                    let include_path = rtokens.pop().unwrap();
+
+                    if include_path.tok_typ != TokenType::String {
+                        lerror!(&include_path.loc, "Bad include path, expected {} but found {}", TokenType::String.human(), include_path.typ.human());
+                        return Err(eyre!(""));
+                    }
+
+                    let mut in_paths = self.args.include.clone();
+                    in_paths.append(&mut crate::DEFAULT_INCLUDES.to_vec().clone().iter().map(|f| (*f).to_string()).collect::<Vec<String>>());
+                    
+                    let mut include_code = String::new();
+                    let mut pth = PathBuf::new();
+                    if include_path.text.chars().collect::<Vec<char>>()[0] == '.' {
+                        let p = Path::new(include_path.loc.0.as_str());
+                        let p = p.parent().unwrap();
+                        let p = p.join(&include_path.text);
+                        pth = p.clone();
+                        include_code = std::fs::read_to_string(p)?;
+                    } else {   
+                        for path in in_paths {
+                            let p = PathBuf::from(path);
+                            let p = p.join(&include_path.text);
+                            pth = p.clone();
+                            
+                            if p.exists() {
+                                include_code = std::fs::read_to_string(p)?;
+                            }
+                            
+                        }
+                    }
+
+                    if include_code.is_empty() {
+                        lerror!(&include_path.loc, "Include file in path '{}' was not found or is empty", include_path.text);
+                        return Err(eyre!(""));
+                    }
+                    let a = pth.to_str().unwrap().to_string();
+                    let code = lex(&include_code, a.as_str(), self.args);
+                    let mut p = parser::Parser::new(code, self.args, Some(self.clone()));
+                    let mut code = p.parse()?;
+
+                    self.set_constants(p.preprocessor.get_constants());
+                    self.set_functions(p.preprocessor.get_functions());
+                    self.set_memories(p.preprocessor.get_memories());
+                    code.reverse();
+                    rtokens.append(&mut code);
+
+
                 }
+                _ if op_type == OpType::Keyword(KeywordType::Memory) => {
+                    if rtokens.is_empty() {
+                        lerror!(&token.loc, "Memory name not found, expected {} but found nothing", TokenType::String.human());
+                        return Err(eyre!(""));
+                    }
+
+                    let name = rtokens.pop().unwrap();
+
+                    self.is_word_available(&name, KeywordType::Memory)?;
+
+                    let mut code: Vec<Operator> = Vec::new();
+
+                    let mut depth = 0;
+                    while !rtokens.is_empty() {
+                        let t = rtokens.pop().unwrap();
+                        let typ = t.typ.clone();
+                        if typ == OpType::Keyword(KeywordType::End) && depth == 0 {
+                            break;
+                        } else if typ == OpType::Keyword(KeywordType::End) && depth != 0 {
+                            depth -= 1;
+                            code.push(t);
+                        } else if typ == OpType::Keyword(KeywordType::If) || typ == OpType::Keyword(KeywordType::Do) {
+                            code.push(t);
+                            depth += 1;
+                        } else {
+                            code.push(t);
+                        }
+                    }
+                    let res = precompile(&code)?;
+
+
+                    if res.len() != 1 {
+                        lerror!(&token.loc, "Expected 1 number, got {:?}", res);
+                        return Err(eyre!(""));
+                    }
+                    token.value = res[0];
+                    token.addr = Some(self.memories.len());
+                    program.push(token.clone());
+
+                    self.memories.insert(name.text, Memory { loc: token.loc, id: self.memories.len() });
+
+                }
+                _ if op_type == OpType::Keyword(KeywordType::Function) => {
+                    if rtokens.is_empty() {
+                        lerror!(&token.loc, "Function name not found, expected {} but found nothing", TokenType::Word.human());
+                        return Err(eyre!(""));
+                    }
+
+                    let mut name = rtokens.pop().unwrap();
+
+                    if let '0'..='9' = name.text.chars().next().unwrap() {
+                        lerror!(&name.loc, "Function name starts with a number which is not allowed");
+                        return Err(eyre!(""));
+                    }
+
+                    // let mut should_warn = false;
+                    for c in name.text.clone().chars() {
+                        match c {
+                            'a'..='z' |
+                            'A'..='Z' |
+                            '0'..='9' |
+                            '-' | '_' => (),
+                            '(' | ')' => {
+                                name.text = name.text.clone().replace('(', "__OP_PAREN__").replace(')', "__CL_PAREN__");
+                            }
+                            _ => {
+                                lerror!(&name.loc, "Function name contains '{c}', which is unsupported");
+                                return Err(eyre!(""));
+                            }
+                        }
+                    }
+                    // if should_warn {
+                        //TODO: add -W option in cli args to enable more warnings
+                        //lwarn!(&function_name.loc, "Function name contains '(' or ')', this character is not supported but will be replaced with '__OP_PAREN__' or '__CL_PAREN__' respectively ");
+                    // }
+
+                    self.is_word_available(&name, KeywordType::Function)?;
+                    
+                    
+                    self.functions.insert(name.text.clone(), Function{
+                        loc: name.loc.clone(),
+                        name: name.text.clone(),
+                    });
+
+                    let mut fn_def = token.clone();
+                    fn_def.typ = OpType::Keyword(KeywordType::FunctionDef);
+                    fn_def.text = name.text;
+                    // println!("{:?}", token);
+                    program.push(fn_def);
+                }
+                _ if op_type == OpType::Keyword(KeywordType::Constant) => {
+                    if rtokens.is_empty() {
+                        lerror!(&token.loc, "Constant name not found, expected {} but found nothing", TokenType::Word.human());
+                        return Err(eyre!(""));
+                    }
+                    // println!("{token:?}");
+
+                    let mut name = rtokens.pop().unwrap();
+                    // let mut should_warn = false;
+
+                    if let '0'..='9' = name.text.chars().next().unwrap() {
+                        lerror!(&name.loc, "Constant name starts with a number which is not allowed");
+                        return Err(eyre!(""));
+                    }
+
+                    for c in name.text.clone().chars() {
+                        match c {
+                            'a'..='z' |
+                            'A'..='Z' |
+                            '0'..='9' |
+                            '-' | '_' => (),
+                            '(' | ')' => {
+                                // should_warn = true;
+                                name.text = name.text.clone().replace('(', "__OP_PAREN__").replace(')', "__CL_PAREN__");
+                            }
+                            _ => {
+                                lerror!(&name.loc, "Constant name contains '{c}', which is unsupported");
+                                return Err(eyre!(""));
+                            }
+                        }
+                    }
+                    // if should_warn {
+                        //TODO: add -W option in cli args to enable more warnings
+                        //lwarn!(&name.loc, "Constant name contains '(' or ')', this character is not supported but will be replaced with '__OP_PAREN__' or '__CL_PAREN__' respectively ");
+                    // }
+                    
+                    self.is_word_available(&name, KeywordType::Constant)?;
+                    
+                    
+                    self.constants.insert(name.text.clone(), Constant{
+                        loc: name.loc.clone(),
+                        name: name.text.clone(),
+                    });
+
+                    // println!("{:?}", self.constants);
+
+                    let mut const_def = token.clone();
+                    const_def.typ = OpType::Keyword(KeywordType::ConstantDef);
+                    const_def.text = name.text;
+
+                    let item = rtokens.pop().unwrap();
+                    if item.tok_typ == TokenType::Int {
+                        const_def.value = item.value;
+                    } else {
+                        lerror!(&token.loc, "For now only {:?} is allowed in constants", TokenType::Int);
+                        return Err(eyre!(""));
+                    }
+
+                    let posibly_end = rtokens.pop();
+                    // println!("end: {posibly_end:?}");
+                    if posibly_end.is_none() || posibly_end.unwrap().typ != OpType::Keyword(KeywordType::End) {
+                        lerror!(&token.loc, "Constant was not closed with an 'end' instruction, expected 'end' but found nothing");
+                        return Err(eyre!(""));
+                    }
+                    // token.value = 
+
+                    program.push(const_def);
+                }  
+
                 _ => {
-                    program.push(op);
+                    
+                    program.push(token);
                 }
             }
-        } else {
-            program.push(op);
         }
+        self.program = program;
+        // println!("has do tokens: {:?}", self.program.iter().map(|t| if t.typ == OpType::Keyword(KeywordType::Do) {Some(t)} else {None} ).collect::<Vec<Option<&Operator>>>());
+        //* Feel free to fix this horrifying shit
+        //* i wanna kms
+        let mut times = 0;
+        // dbg!(program.clone());
+        while self.program.iter().map(|f| {
+            if f.tok_typ == TokenType::Word && 
+                f.typ != OpType::Instruction(InstructionType::FnCall) && 
+                f.typ != OpType::Instruction(InstructionType::MemUse) &&
+                f.typ != OpType::Keyword(KeywordType::FunctionDef) &&
+                f.typ != OpType::Keyword(KeywordType::ConstantDef) &&
+                f.typ != OpType::Instruction(InstructionType::ConstUse) {
+                lookup_word(&f.text, &f.loc)
+            } else {
+                OpType::Instruction(InstructionType::PushInt) // i hate myself, this is a randomly picked optype so its happy and works
+            }
 
-        
+        }).collect::<Vec<OpType>>().contains(&OpType::Instruction(InstructionType::None)){
+
+            if times >= 50 {
+                warn!("File import depth maxed out, if the program crashes try reducing the import depth, good luck youll need it");
+                break
+            }
+            self.expand()?;
+            times += 1;
+        }
+        Ok(self)
     }
 
+    pub fn expand(&mut self) -> Result<()> {
+        let mut program: Vec<Operator> = Vec::new();
+        // println!("{:?}", self.functions);
+        let mut rtokens = self.program.clone();
+        rtokens.reverse();
 
+        while !rtokens.is_empty() {
+            let op = rtokens.pop().unwrap();
+            let op_type = op.typ.clone();
+            if op.tok_typ == TokenType::Word {
+                match op_type {
+                    OpType::Instruction(InstructionType::None) => {
+                        let m = self.functions.get(&op.text);
+                        let mem = self.memories.get(&op.text);
+                        let cons = self.constants.get(&op.text);
+                        if let Some(m) = m {
+                            // println!("------ FOUND FUNCTION {} -----------", m.name);
+                            let mut t = op.clone();
+                            t.typ = OpType::Instruction(InstructionType::FnCall);
+                            t.text = m.name.clone();
+                            program.push(t.clone());
 
+                            // println!("##### {:?}", t);
+                        } else if let Some(mem) = mem {
+                            let mut t = op.clone();
+                            t.addr = Some(mem.deref().id);
+                            t.typ = OpType::Instruction(InstructionType::MemUse);
+                            program.push(t);
+                        } else if let Some(cons) = cons {
+                            let mut t = op.clone();
+                            t.text = cons.deref().name.clone();
+                            t.typ = OpType::Instruction(InstructionType::ConstUse);
+                            program.push(t);
+                            
+                        } else {
+                            lerror!(&op.loc, "Preprocess: Unknown word '{}'", op.text.clone());
+                            return Err(eyre!(""));
+                        }
+                    }
+                    _ => {
+                        program.push(op.clone());
+                    }
+                }
+            } else {
+                program.push(op.clone());
+            }
+            
+            // if op.typ == OpType::Keyword(KeywordType::Do) {
+            //     println!("expand: {:?}", op);
+            //     program.push(op.clone());
+            // }
+            
+        }
+        // println!("expand: has do tokens: {:?}", program.iter().map(|t| if t.typ == OpType::Keyword(KeywordType::Do) {Some(t)} else {None} ).collect::<Vec<Option<&Operator>>>());
 
+        self.program = program;
+        // println!("{:#?}", self.program);
+        // println!("{:?}", self.program.last().unwrap());
+        Ok(())
+    }
 
-    Ok(program)
+    
+
+    pub fn get_ops(&mut self) -> Vec<Operator> {
+        self.program.clone()
+    }
+    pub fn is_word_available(&self, word: &Operator, typ: KeywordType) -> Result<bool> {
+
+        match typ {
+            KeywordType::Memory |
+            KeywordType::Constant |
+            KeywordType::Function => (),
+            _ => panic!()
+        }
+        
+        if word.tok_typ != TokenType::Word {
+            lerror!(&word.loc, "Bad {typ:?}, expected {} but found {}", TokenType::Word.human(), word.typ.human());
+            if crate::DEV_MODE {println!("{word:?}")}
+            return Err(eyre!(""));
+        }
+
+        let w = lookup_word(&word.text, &word.loc);
+        if w != OpType::Instruction(InstructionType::None) {
+            lerror!(&word.loc, "Bad {typ:?}, {typ:?} definition cannot be builtin word, got {:?}", word.text);
+            if crate::DEV_MODE {println!("{word:?}")}
+            return Err(eyre!(""));
+        }
+
+        let m = self.memories.get(&word.text);
+        if let Some(m) = m {
+            if typ == KeywordType::Memory {
+                lerror!(&word.loc, "Memories cannot be redefined, got {}", word.text);
+                linfo!(&m.loc, "first definition here"); 
+                if crate::DEV_MODE {println!("{word:?}")}
+                return Err(eyre!(""));
+            }
+            lerror!(&word.loc, "{typ:?} cannot replace memory, got {}", word.text);
+            linfo!(&m.loc, "first definition here"); 
+            if crate::DEV_MODE {println!("{word:?}")}
+            return Err(eyre!(""));
+        }
+        let f = self.functions.get(&word.text);
+        if let Some(f) = f {
+            if typ == KeywordType::Function {
+                lerror!(&word.loc, "Functions cannot be redefined, got {}", word.text);
+                linfo!(&f.loc, "first definition here"); 
+                if crate::DEV_MODE {println!("{word:?}")}
+                return Err(eyre!(""));
+            }
+            lerror!(&word.loc, "{typ:?} cannot replace function, got {}", word.text);
+            linfo!(&f.loc, "first definition here"); 
+            if crate::DEV_MODE {println!("{word:?}")}
+            return Err(eyre!(""));
+        }
+        let c = self.constants.get(&word.text);
+        if let Some(c) = c {
+            if typ == KeywordType::Constant {
+                lerror!(&word.loc, "Constants cannot be redefined, got {}", word.text);
+                linfo!(&c.loc, "first definition here"); 
+                if crate::DEV_MODE {println!("{word:?}")}
+                return Err(eyre!(""));
+            }
+            lerror!(&word.loc, "{typ:?} cannot replace constant, got {}", word.text);
+            linfo!(&c.loc, "first definition here"); 
+            if crate::DEV_MODE {println!("{word:?}")}
+            return Err(eyre!(""));
+        }
+
+        Ok(true)
+    }
+
+    pub fn set_functions(&mut self, f: Functions) {
+        self.functions = f;
+    }
+    pub fn set_constants(&mut self, f: Constants) {
+        self.constants = f;
+    }
+    pub fn set_memories(&mut self, f: Memories) {
+        self.memories = f;
+    }
+
+    pub fn get_functions(&mut self) -> Functions {
+        self.functions.clone()
+    }
+    pub fn get_constants(&mut self) -> Constants {
+        self.constants.clone()
+    }
+    pub fn get_memories(&mut self) -> Memories{
+        self.memories.clone()
+    }
 }

@@ -1,6 +1,5 @@
 
-use crate::{constants::{Token, TokenType}, preprocessor::preprocess, Args};
-use color_eyre::Result;
+use crate::{constants::{Token, TokenType}, Args};
 
 fn lex_word(s: String, tok_type: TokenType) -> (TokenType, String) {
     match s {
@@ -89,7 +88,7 @@ fn lex_line(text: &str) -> Vec<(usize, String, TokenType)> {
     tokens
 }
 
-pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, args: &Args, preprocessing: bool) -> Result<Vec<Token>> {
+pub fn lex(code: &str, file: &str, _args: &Args) -> Vec<Token> {
     let lines: Vec<(usize, &str)> = code
         .split(['\n', '\r'])
         .enumerate()
@@ -104,14 +103,14 @@ pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, args: &Args
         for (col, tok, tok_type) in lt {
             let (tok_type, tok) = lex_word(tok, tok_type);
             let t = Token{
-                file: file.into(),
+                file: file.to_string(),
                 line: row + 1,
                 col,
                 text: tok,
                 typ: tok_type,
                 value: None,
                 addr: None,
-                op_typ: crate::constants::InstructionType::None
+                op_typ: crate::constants::OpType::Instruction(crate::constants::InstructionType::None)
             };
             tokens.push(t);
         }
@@ -121,9 +120,7 @@ pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, args: &Args
     // for token in tokens.clone() {
     //     println!("tok: {:?}", token.text);
     // }
-    if preprocessing {
-        tokens = preprocess(tokens, args)?;
-    }
+    
 
-    Ok(tokens)
+    tokens
 }

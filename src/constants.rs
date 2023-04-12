@@ -1,5 +1,4 @@
 
-pub const ALLOW_MACRO_REDEFINITION: bool = true;
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -33,9 +32,12 @@ pub enum InstructionType {
 
 
     // mem
-    Mem,
     Load8,
     Store8,
+    Load32,
+    Store32,
+    Load64,
+    Store64,
 
     // syscalls
     Syscall0,
@@ -49,21 +51,41 @@ pub enum InstructionType {
     CastBool,
     CastPtr,
     CastInt,
+    CastVoid,
 
+    // typing
+    TypeBool,
+    TypePtr,
+    TypeInt,
+    TypeVoid,
+    TypeStr,
+    TypeAny,
+    Returns,
+    With,
+
+    FnCall,
     MemUse,
+    ConstUse,
+
+    Return,
     None // Used for macros and any other non built in word definitions
 
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KeywordType {
     If,
     Else,
     End,
     While,
     Do,
-    Macro,
     Include,
-    Memory
+    Memory,
+    Constant,
+    ConstantDef,
+    Function,
+    FunctionDef,
+    FunctionThen,
+    FunctionDone
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -75,6 +97,7 @@ pub enum OpType {
 #[derive(Debug, Clone)]
 pub struct Operator{
     pub typ: OpType,
+    pub tok_typ: TokenType,
     pub value: usize,
     pub text: String, //? only used for OpType::PushStr
     pub addr: Option<usize>, //? only used for OpType::PushStr
@@ -83,14 +106,15 @@ pub struct Operator{
 }
 
 impl Operator {
-    pub fn new(typ: OpType, value: usize, text: String, file: String, row: usize, col: usize) -> Self {
+    pub fn new(typ: OpType, tok_typ: TokenType, value: usize, text: String, file: String, row: usize, col: usize) -> Self {
         Self {
             typ,
             value,
             jmp: 0,
             addr: None,
             text,
-            loc: (file, row, col)
+            loc: (file, row, col),
+            tok_typ,
         }
     }
     pub fn set_addr(mut self, addr: usize) -> Self {
@@ -108,7 +132,7 @@ impl OpType {
 
                     InstructionType::PushInt => "Number",
                     InstructionType::PushStr => "String",
-                    InstructionType::Print => "print",
+                    InstructionType::Print => "_dbg_print",
                     InstructionType::Dup => "dup",
                     InstructionType::Drop => "drop",
                     InstructionType::Rot => "rot",
@@ -128,9 +152,12 @@ impl OpType {
                     InstructionType::Shl => "shl",
                     InstructionType::DivMod => "divmod",
                     InstructionType::Mul => "*",
-                    InstructionType::Mem => "mem",
-                    InstructionType::Load8 => "!8",
-                    InstructionType::Store8 => "@8",
+                    InstructionType::Load8 => "load8",
+                    InstructionType::Store8 => "store8",
+                    InstructionType::Load32 => "load32",
+                    InstructionType::Store32 => "store32",
+                    InstructionType::Load64 => "load64",
+                    InstructionType::Store64 => "store64",
                     InstructionType::Syscall0 => "syscall0",
                     InstructionType::Syscall1 => "syscall1",
                     InstructionType::Syscall2 => "syscall2",
@@ -141,8 +168,20 @@ impl OpType {
                     InstructionType::CastBool => "cast(bool",
                     InstructionType::CastPtr => "cast(ptr)",
                     InstructionType::CastInt => "cast(int)",
-                    InstructionType::MemUse => "MemUse",
+                    InstructionType::CastVoid => "cast(void)",
                     InstructionType::None => "None",
+                    InstructionType::MemUse => "Memory use (internal)",
+                    InstructionType::FnCall => "Function Call (Internal)",
+                    InstructionType::ConstUse => "Constant Use (Internal)",
+                    InstructionType::Return => "return",
+                    InstructionType::TypeBool => "bool",
+                    InstructionType::TypePtr => "ptr",
+                    InstructionType::TypeInt => "int",
+                    InstructionType::TypeVoid => "void",
+                    InstructionType::TypeStr => "str",
+                    InstructionType::Returns => "returns",
+                    InstructionType::With => "with",
+                    InstructionType::TypeAny => "any",
                 }
             }
             OpType::Keyword(keyword) => {
@@ -152,9 +191,14 @@ impl OpType {
                     KeywordType::End => "end",
                     KeywordType::While => "while",
                     KeywordType::Do => "do",
-                    KeywordType::Macro => "macro",
                     KeywordType::Include => "include",
-                    KeywordType::Memory => "memory"
+                    KeywordType::Memory => "memory",
+                    KeywordType::Function => "fn",
+                    KeywordType::Constant => "const",
+                    KeywordType::FunctionThen => "then",
+                    KeywordType::FunctionDone => "done",
+                    KeywordType::ConstantDef => "constant Definition (internal)",
+                    KeywordType::FunctionDef => "function definition (internal)"
                 }
             }
             
@@ -171,7 +215,7 @@ pub struct Token {
     pub typ: TokenType,
     pub value: Option<usize>, //* only used for Memories
     pub addr: Option<usize>, //* only used for Memories
-    pub op_typ: InstructionType //* only used for Memories
+    pub op_typ: OpType //* only used for Memories
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -210,6 +254,8 @@ pub enum Types {
     Bool,
     Ptr,
     Int,
+    Void,
+    Str,
     Any
     // U8,
     // U16,

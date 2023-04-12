@@ -5,11 +5,11 @@
 // @arg str_len: Int
 // @arg str_ptr: Ptr
 // @ret NULL/NEVER
-macro assert
+fn assert with bool int ptr returns void then
     rot
     if else
     "Assert failed: \"" eputs eputs
     "\". Exiting!\n" eputs
     1 exit
     end
-end
+done

@@ -1,12 +1,15 @@
-use std::{fs, path::PathBuf, io::{Write, BufWriter}};
+use std::{fs, path::PathBuf, io::{Write, BufWriter}, collections::HashMap};
 use crate::{constants::{Operator, OpType, KeywordType}, Args};
 use color_eyre::Result;
 use crate::compile::commands::linux_x86_64_compile_and_link;
 use crate::constants::InstructionType;
-use super::commands::linux_x86_64_run;
+use super::{commands::linux_x86_64_run, Constant, Memory, Function};
+use eyre::eyre;
 
 
 pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
+    let debug = args.get_opt_level()? < 1;
+
     let mut of_c = PathBuf::from(&args.out_file);
     let (mut of_o, mut of_a) = if args.out_file == *crate::DEFAULT_OUT_FILE {
         let of_o = PathBuf::from("/tmp/mclang_comp.o");
@@ -22,18 +25,19 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     of_o.set_extension("o");
     of_a.set_extension("nasm");
 
-    
 
     let file = fs::File::create(&of_a)?;
     let mut writer = BufWriter::new(&file);
-    let mut memories:  Vec<(usize, usize)> = Vec::new();
+    let mut memories:  Vec<Memory> = Vec::new();
+    let mut constants:  HashMap<String, Constant> = HashMap::new();
+    let mut functions: Vec<Function> = Vec::new();
     // println!("{}", tokens.len());
     let mut strings: Vec<String> = Vec::new();
-
+    
     writeln!(writer, "BITS 64")?;
     writeln!(writer, "segment .text")?;
 
-    writeln!(writer, "print:")?;
+    writeln!(writer, "_dbg_print:")?;
     writeln!(writer, "    mov     r9, -3689348814741910323")?;
     writeln!(writer, "    sub     rsp, 40")?;
     writeln!(writer, "    mov     BYTE [rsp+31], 10")?;
@@ -68,46 +72,76 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     writeln!(writer, "    ret")?;
 
     writeln!(writer, "global _start")?;
-    writeln!(writer, "_start:")?;
+    writeln!(writer, "_start:")?; 
+    writeln!(writer, "    lea rbp, [rel ret_stack]")?;
+    writeln!(writer, "    call main")?;
+    writeln!(writer, "    jmp end")?;
+
 
     let mut ti = 0;
     while ti < tokens.len() {
         let token = &tokens[ti];
+        // println!("{:?}", token);
+        if debug {
+            writeln!(writer, "addr_{ti}:")?;
+            if token.typ == OpType::Instruction(InstructionType::PushInt) {
+                writeln!(writer, "    ;; -- {:?} {}", token.typ, token.value)?;
+            } else if token.typ == OpType::Instruction(InstructionType::PushStr) {
+                writeln!(writer, "    ;; -- {:?} {}", token.typ, token.text.escape_debug())?;
+            } else {
+                writeln!(writer, "    ;; -- {:?}", token.typ)?;
+            }
+        } else {
 
-        writeln!(writer, "addr_{ti}:")?;
+            if ti != 0 && tokens[ti-1].typ == OpType::Keyword(KeywordType::Else) ||
+                tokens[ti-1].typ == OpType::Keyword(KeywordType::End){
+                writeln!(writer, "addr_{ti}:")?;
+            }
+
+            if ti + 1 < tokens.len() && tokens[ti+1].typ == OpType::Keyword(KeywordType::End) {
+                writeln!(writer, "addr_{ti}:")?;
+            }
+            
+            if let OpType::Keyword(keyword) = &token.typ {
+                match keyword {
+                    &KeywordType::End |
+                    &KeywordType::While => {
+                        writeln!(writer, "addr_{ti}:")?;
+                    }
+                    _ => ()
+                }
+            }
+
+        }
         match token.typ.clone() {
             // stack
 
             OpType::Instruction(instruction) => {
                 match instruction {
                     InstructionType::PushInt => {
-                        writeln!(writer, "    ;; -- push int {}", token.value)?;
                         writeln!(writer, "    mov rax, {}", token.value)?;
                         writeln!(writer, "    push rax")?;
                         ti += 1;
                     },
                     InstructionType::PushStr => {
-                        writeln!(writer, "    ;; -- push str \"{}\"", token.text.escape_default())?;
                         writeln!(writer, "    mov rax, {}", token.text.len())?;
                         writeln!(writer, "    push rax")?;
-                        writeln!(writer, "    push str_{}", strings.len())?;
+                        writeln!(writer, "    mov rax, str_{}", strings.len())?;
+                        writeln!(writer, "    push rax")?;
                         strings.push(token.text.clone());
                         ti += 1;
                     }
                     InstructionType::Drop => {
-                        writeln!(writer, "    ;; -- drop")?;
                         writeln!(writer, "    pop rax")?;
                         ti += 1;
                     },
                     InstructionType::Print => {
-                        writeln!(writer, "    ;; -- print")?;
                         writeln!(writer, "    pop rdi")?;
-                        writeln!(writer, "    call print")?;
+                        writeln!(writer, "    call _dbg_print")?;
                         ti += 1;
                     },
         
                     InstructionType::Dup => {
-                        writeln!(writer, "    ;; -- dup")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    push rax")?;
                         writeln!(writer, "    push rax")?;
@@ -116,7 +150,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                     },
         
                     InstructionType::Rot => {
-                        writeln!(writer, "    ;; -- rot")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    pop rcx")?;
@@ -127,7 +160,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Swap => {
-                        writeln!(writer, "    ;; -- swap")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    push rax")?;
@@ -136,7 +168,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Over => {
-                        writeln!(writer, "    ;; -- over")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    push rbx")?;
@@ -145,33 +176,51 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
         
                         ti += 1;
                     },
-        
-                    //mem
-                    InstructionType::Mem => {
-                        writeln!(writer, "    ;; -- mem")?;
-                        writeln!(writer, "    push mem")?;
-                        ti += 1;
-                    }
                     InstructionType::Load8 => {
-                        writeln!(writer, "    ;; -- load")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    xor rbx, rbx")?;
-                        writeln!(writer, "    mov bl, [rax]")?;
+                        writeln!(writer, "    mov bl, byte [rax]")?;
                         writeln!(writer, "    push rbx")?;
                         ti += 1;
                     }
         
                     InstructionType::Store8 => {
-                        writeln!(writer, "    ;; -- store")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    pop rax")?;
-                        writeln!(writer, "    mov [rax], bl")?;
+                        writeln!(writer, "    mov byte [rax], bl")?;
+                        ti += 1;
+                    }
+                    InstructionType::Load32 => {
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    xor rbx, rbx")?;
+                        writeln!(writer, "    mov bl, dword [rax]")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    }
+        
+                    InstructionType::Store32 => {
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    mov dword[rax], bl")?;
+                        ti += 1;
+                    }
+                    InstructionType::Load64 => {
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    xor rbx, rbx")?;
+                        writeln!(writer, "    mov bl, qword [rax]")?;
+                        writeln!(writer, "    push rbx")?;
+                        ti += 1;
+                    }
+        
+                    InstructionType::Store64 => {
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    pop rax")?;
+                        writeln!(writer, "    mov qword [rax], bl")?;
                         ti += 1;
                     }
         
                     // math
                     InstructionType::Plus => {
-                        writeln!(writer, "    ;; -- plus")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    add rax, rbx")?;
@@ -179,7 +228,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Minus => {
-                        writeln!(writer, "    ;; -- minus")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    sub rbx, rax")?;
@@ -187,7 +235,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Equals => {
-                        writeln!(writer, "    ;; -- equals")?;
                         writeln!(writer, "    mov rcx, 0")?;
                         writeln!(writer, "    mov rdx, 1")?;
                         writeln!(writer, "    pop rax")?;
@@ -198,7 +245,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Lt => {
-                        writeln!(writer, "    ;; -- lt")?;
                         writeln!(writer, "    mov rcx, 0")?;
                         writeln!(writer, "    mov rdx, 1")?;
                         writeln!(writer, "    pop rbx")?;
@@ -209,7 +255,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Gt => {
-                        writeln!(writer, "    ;; -- gt")?;
                         writeln!(writer, "    mov rcx, 0")?;
                         writeln!(writer, "    mov rdx, 1")?;
                         writeln!(writer, "    pop rbx")?;
@@ -220,7 +265,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::NotEquals => {
-                        writeln!(writer, "    ;; -- not equals")?;
                         writeln!(writer, "    mov rcx, 1")?;
                         writeln!(writer, "    mov rdx, 0")?;
                         writeln!(writer, "    pop rax")?;
@@ -231,7 +275,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Le => {
-                        writeln!(writer, "    ;; -- lt")?;
                         writeln!(writer, "    mov rcx, 0")?;
                         writeln!(writer, "    mov rdx, 1")?;
                         writeln!(writer, "    pop rbx")?;
@@ -242,7 +285,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Ge => {
-                        writeln!(writer, "    ;; -- gt")?;
                         writeln!(writer, "    mov rcx, 0")?;
                         writeln!(writer, "    mov rdx, 1")?;
                         writeln!(writer, "    pop rbx")?;
@@ -253,7 +295,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Band => {
-                        writeln!(writer, "    ;; -- band")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    and rbx, rax")?;
@@ -261,7 +302,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Bor => {
-                        writeln!(writer, "    ;; -- bor")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    or rbx, rax")?;
@@ -269,7 +309,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Shr => {
-                        writeln!(writer, "    ;; -- shr")?;
                         writeln!(writer, "    pop rcx")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    shr rbx, cl")?;
@@ -277,7 +316,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Shl => {
-                        writeln!(writer, "    ;; -- shl")?;
                         writeln!(writer, "    pop rcx")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    shl rbx, cl")?;
@@ -285,7 +323,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::DivMod => {
-                        writeln!(writer, "    ;; -- div")?;
                         writeln!(writer, "    xor rdx, rdx")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    pop rax")?;
@@ -295,7 +332,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Mul => {
-                        writeln!(writer, "    ;; -- mul")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    mul rbx")?;
@@ -303,14 +339,12 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Syscall0 => {
-                        writeln!(writer, "    ;; -- syscall0")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    syscall")?;
                         writeln!(writer, "    push rax")?;
                         ti += 1;
                     },
                     InstructionType::Syscall1 => {
-                        writeln!(writer, "    ;; -- syscall1")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rdi")?;
                         writeln!(writer, "    syscall")?;
@@ -318,7 +352,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Syscall2 => {
-                        writeln!(writer, "    ;; -- syscall2")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rdi")?;
                         writeln!(writer, "    pop rsi")?;
@@ -327,7 +360,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Syscall3 => {
-                        writeln!(writer, "    ;; -- syscall3")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rdi")?;
                         writeln!(writer, "    pop rsi")?;
@@ -338,7 +370,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Syscall4 => {
-                        writeln!(writer, "    ;; -- syscall4")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rdi")?;
                         writeln!(writer, "    pop rsi")?;
@@ -349,7 +380,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Syscall5 => {
-                        writeln!(writer, "    ;; -- syscall5")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rdi")?;
                         writeln!(writer, "    pop rsi")?;
@@ -361,7 +391,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Syscall6 => {
-                        writeln!(writer, "    ;; -- syscall6")?;
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    pop rdi")?;
                         writeln!(writer, "    pop rsi")?;
@@ -374,14 +403,48 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::MemUse => {
-                        writeln!(writer, "    ;; -- MemUse")?;
                         writeln!(writer, "    push mem_{}", token.addr.unwrap())?;
                         ti += 1;
                     },
-                    InstructionType::None => unreachable!(),
-                    InstructionType::CastBool => ti += 1,
-                    InstructionType::CastPtr => ti += 1,
-                    InstructionType::CastInt => ti += 1,
+                    InstructionType::None => {
+                        println!("{token:?}");
+                        unreachable!()
+                    },
+                    InstructionType::FnCall => {
+                        writeln!(writer, "    call {}", token.text)?;
+                        ti += 1;
+                    },
+                    InstructionType::Return => {
+                        writeln!(writer, "    sub rbp, 8")?;
+                        writeln!(writer, "    mov rbx, qword [rbp]")?;
+                        writeln!(writer, "    push rbx")?;
+                        writeln!(writer, "    ret")?;
+                        ti += 1;
+                    },
+                    InstructionType::CastBool |
+                    InstructionType::CastPtr |
+                    InstructionType::CastInt |
+                    InstructionType::CastVoid |
+                    InstructionType::TypeBool |
+                    InstructionType::TypePtr |
+                    InstructionType::TypeInt |
+                    InstructionType::TypeVoid |
+                    InstructionType::TypeStr |
+                    InstructionType::TypeAny |
+                    InstructionType::Returns |
+                    InstructionType::With => {
+                        ti += 1;
+                    }
+                    InstructionType::ConstUse => {
+                        writeln!(writer, "    mov rax, qword [const_{}]", token.text)?;
+                        writeln!(writer, "    push rax")?;
+
+                        let mut c = constants.get(&token.text).unwrap().clone();
+                        c.used = true;
+                        constants.remove(&token.text);
+                        constants.insert(token.text.clone(), c);
+                        ti += 1;
+                    },
                 }
             }
 
@@ -390,48 +453,69 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                 match keyword {
 
                     // block
-                    KeywordType::If => {
-                        writeln!(writer, "    ;; -- if")?;
+                    KeywordType::If |
+                    KeywordType::Do => {
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    test rax, rax")?;
                         writeln!(writer, "    jz addr_{}", token.jmp)?;
                         ti += 1;
-                    },
+                    }
                     KeywordType::Else => {
-                        writeln!(writer, "    ;; -- else")?;
                         writeln!(writer, "    jmp addr_{}", token.jmp)?;
                         ti += 1;
                     },
                     KeywordType::While => {
-                        writeln!(writer, "    ;; -- while")?;
-                        ti += 1;
-                    }
-                    KeywordType::Do => {
-                        writeln!(writer, "    ;; -- do")?;
-                        writeln!(writer, "    pop rax")?;
-                        writeln!(writer, "    test rax, rax")?;
-                        writeln!(writer, "    jz addr_{}", token.jmp)?;
                         ti += 1;
                     }
                     KeywordType::End => {
-                        writeln!(writer, "    ;; -- end")?;
                         if ti + 1 != token.jmp {
-                            writeln!(writer, "    jmp addr_{}", token.jmp)?;
+                            // writeln!(writer, "    jmp addr_{}", token.jmp)?;
                         }
                         ti += 1;
                     },
                     KeywordType::Memory => {
-                        memories.push((token.addr.unwrap(), token.value));
+                        memories.push(Memory { size: token.value, loc: token.loc.clone(), id: token.addr.unwrap() });
                         ti += 1;
                     }
-                    KeywordType::Macro |
-                    KeywordType::Include
-                        => unreachable!()
+                    KeywordType::ConstantDef => {
+                        // TODO: after we add c style strings add supoort for them in constants
+                        let a = args.get_opt_level()? < 1;
+                        let c = Constant{
+                            loc: token.loc.clone(),
+                            name: token.text.clone(),
+                            value_i: Some(token.value),
+                            value_s: None,
+                            used: a,
+                        };
+                        
+                        constants.insert(token.text.clone(), c);
+                        ti += 1;
+                    },
+                    KeywordType::FunctionDef => {
+                        writeln!(writer, "{}:", token.text)?;
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    mov qword [rbp], rbx")?;
+                        writeln!(writer, "    add rbp, 8")?;
+                        functions.push(Function { loc: token.loc.clone(), name: token.text.clone() });
+                        ti += 1;
+                    },
+                    KeywordType::FunctionDone => {
+                        writeln!(writer, "    sub rbp, 8")?;
+                        writeln!(writer, "    mov rbx, qword [rbp]")?;
+                        writeln!(writer, "    push rbx")?;
+                        writeln!(writer, "    ret")?;
+                        ti += 1;
+                    }
+                    KeywordType::FunctionThen => ti += 1,
+                    KeywordType::Function |
+                    KeywordType::Include |
+                    KeywordType::Constant => unreachable!(),
                 }
             }
         }
     }
     writeln!(writer, "addr_{ti}:")?;
+    writeln!(writer, "end:")?;
     writeln!(writer, "    mov rax, 60")?;
     writeln!(writer, "    mov rdi, 0")?;
     writeln!(writer, "    syscall")?;
@@ -442,18 +526,65 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
         writeln!(writer, "    str_{}: db {} ; {}", i, s_list, s.escape_default())?;
     }
     
-    writeln!(writer, "segment .bss")?;
-    for (_, s) in memories.iter().enumerate() {
-        writeln!(writer, "    mem_{}: resb {}", s.0, s.1)?;
+    for (_, c) in constants {
+        if !c.used {
+            continue;
+        }
+
+        if let Some(v) = &c.value_i {
+            writeln!(writer, "    const_{}: dq {}", c.name, v)?;
+        } else if let Some(_v) = &c.value_s {
+            todo!();
+        } else {
+            unreachable!();
+        }
+
     }
-    writeln!(writer, "    mem: resb {}", crate::compile::MEM_SZ)?;
+    
+    
+    writeln!(writer, "segment .bss")?;
+    for s in memories {
+        writeln!(writer, "    mem_{}: resb {}", s.id, s.size)?;
+    }
+    writeln!(writer, "    ret_stack: resq 256")?;
+    
+    // for t in tokens {
+    //     println!("{t:?}");
+    // }
 
     writer.flush()?;
+
+    
+    pre_compile_steps(
+        String::from_utf8_lossy(writer.buffer()).to_string().as_str(),
+        functions
+    )?;
+
     linux_x86_64_compile_and_link(&of_a, &of_o, &of_c, args.quiet)?;
     if args.run {
         let c = linux_x86_64_run(&of_c, &[], args.quiet)?;
         return Ok(c);
     }
 
+
     Ok(0)
+}
+
+
+fn pre_compile_steps(_code: &str, functions: Vec<Function>) -> Result<()> {
+    let mut has_main = false;
+
+    for func in functions {
+        if func.name == "main" {
+            has_main = true;
+        }
+    }
+
+
+    if !has_main {
+        crate::errors::missing_main_fn();
+        return Err(eyre!(""));
+    }
+    
+    Ok(())
 }

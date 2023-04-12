@@ -1,3 +1,5 @@
+#![allow(clippy::wildcard_imports)]
+#![allow(clippy::too_many_lines)]
 mod constants;
 mod interpret;
 mod util;
@@ -7,18 +9,14 @@ mod lexer;
 mod preprocessor;
 mod typechecker;
 mod precompiler;
-
-use std::fs;
+mod config;
+mod errors;
+use config::*;
+use std::{fs, collections::HashMap};
 
 use clap::Parser;
-
-pub const DEFAULT_OUT_FILE: &str = "a.out";
-pub const DEFAULT_INCLUDES: [&str;2] = [
-    "./include",
-    "~/.mclang/include",
-];
-
-
+use color_eyre::Result;
+use eyre::eyre;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -53,38 +51,70 @@ pub struct Args {
 
     /// Unsafe mode, disables typechecking
     #[arg(long="unsafe", default_value_t = false)]
-    unsaf: bool
+    unsaf: bool,
     
+    /// Optimisation level, available levels: 'D': debug, '0': No optimisations
+    #[arg(long, short='O', default_value_t=String::from("0"))]
+    optimisation: String,
+
     //#[arg(long, short='F')]
     //features: Vec<String>,
 
 }
 
-fn main() {
+impl Args {
+    /// Get optimisation level
+    /// 0 => no optimisations
+    /// 1 => slight optimisations, mostly size ones
+    /// # Errors
+    /// 
+    /// Throws when the opt level is not known
+    pub fn get_opt_level(&self) -> Result<usize>{
+        match self.optimisation.as_str() {
+            "D" | "d" => Ok(0),
+            "0" | "" => Ok(1),
+            o => {
+                error!("Unknown optimisation level {o}");
+                Err(eyre!(""))
+            }
+        }
+    }
+}
+
+fn main() -> Result<()>{
 
 
     let args = Args::parse();
 
     let Ok(code) = fs::read_to_string(&args.in_file) else {
         error!("Failed to read file {}, exiting!", &args.in_file);
-        return;
-        
+        return Ok(());
     };
-    let Ok(tokens) = lexer::lex(&code, &args.in_file, &args, true) else {
-        error!("Lexing failed, exiting!");
-        return;
-    };
+    
+    let tokens = lexer::lex(&code, args.in_file.as_str(), &args);
 
     
-    let mut parser = parser::Parser::new(tokens);
-    let Ok(tokens) = parser.parse() else {
-        error!("Parsing failed, exiting!");
-        return;
+    let mut parser = parser::Parser::new(tokens, &args, None);
+    let tokens = match parser.parse(){
+        Ok(t) => t,
+        Err(e) => {
+            error!("Parsing failed, exiting!");
+            if crate::DEV_MODE {
+                return Err(e)
+            }
+            return Ok(());
+        }
     };
 
-    let Ok(tokens) = typechecker::typecheck(&tokens, &args) else {
-        error!("Typechecking failed, exiting!");
-        return;
+    match typechecker::typecheck(tokens.clone(), &args, None, HashMap::new(), HashMap::new()) {
+        Ok(_) => (),
+        Err(e) => {
+            error!("Typechecking failed, exiting!");
+            if crate::DEV_MODE {
+                return Err(e);
+            }
+            return Ok(());
+        }
     };
 
     let c = if args.compile && args.interpret {

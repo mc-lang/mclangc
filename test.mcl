@@ -1,6 +1,5 @@
-memory m 10 end
+include "std.mcl"
 
-m 69 store8
-
-
-m load8 print
+fn main with void returns void then
+    "hi\n" puts
+done
