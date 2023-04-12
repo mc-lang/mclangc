@@ -62,6 +62,7 @@ pub fn typecheck(ops: Vec<Operator>, args: &Args, init_types: Option<Vec<Types>>
                         stack_pop(&mut stack, &op, &[Types::Bool])?;
                     },
 
+                    KeywordType::FunctionDefInline |
                     KeywordType::FunctionDef => {
                         let name = op.text.clone();
 
@@ -177,6 +178,7 @@ pub fn typecheck(ops: Vec<Operator>, args: &Args, init_types: Option<Vec<Types>>
                     KeywordType::FunctionThen |
                     KeywordType::FunctionDone |
                     KeywordType::Function => unreachable!(),
+                    KeywordType::Inline => (),
                 }
             },
             OpType::Instruction(instruction) => {

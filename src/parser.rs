@@ -44,9 +44,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                         program[ip].jmp = program[block_ip].jmp;
                         program[block_ip].jmp = ip + 1;
                     }
-                    OpType::Keyword(KeywordType::FunctionThen) => {
-                        program[ip].typ = OpType::Instruction(InstructionType::Return);
-                    }
+                    
                     OpType::Keyword(KeywordType::Memory | KeywordType::Constant) => (),
 
                     a => {
@@ -208,6 +206,7 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "fn" => OpType::Keyword(KeywordType::Function),
         "then" => OpType::Keyword(KeywordType::FunctionThen),
         "done" => OpType::Keyword(KeywordType::FunctionDone),
+        "inline" => OpType::Keyword(KeywordType::Inline),
         "return" => OpType::Instruction(InstructionType::Return),
         "returns" => OpType::Instruction(InstructionType::Returns),
         "bool" => OpType::Instruction(InstructionType::TypeBool),

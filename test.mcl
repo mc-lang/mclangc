@@ -1,5 +1,7 @@
-include "std.mcl"
+// include "std.mcl"
 
 fn main with void returns void then
-    "hi\n" puts
+    69 test
 done
+
+inline fn test with void returns void then _dbg_print done

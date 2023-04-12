@@ -84,8 +84,10 @@ pub enum KeywordType {
     ConstantDef,
     Function,
     FunctionDef,
+    FunctionDefInline,
     FunctionThen,
-    FunctionDone
+    FunctionDone,
+    Inline
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -198,7 +200,9 @@ impl OpType {
                     KeywordType::FunctionThen => "then",
                     KeywordType::FunctionDone => "done",
                     KeywordType::ConstantDef => "constant Definition (internal)",
-                    KeywordType::FunctionDef => "function definition (internal)"
+                    KeywordType::FunctionDef => "function definition (internal)",
+                    KeywordType::FunctionDefInline => "inline function definition (internal)",
+                    KeywordType::Inline => "inline"
                 }
             }
             

@@ -92,10 +92,11 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                 writeln!(writer, "    ;; -- {:?}", token.typ)?;
             }
         } else {
-
-            if ti != 0 && tokens[ti-1].typ == OpType::Keyword(KeywordType::Else) ||
+            if ti > 0 {
+                if tokens[ti-1].typ == OpType::Keyword(KeywordType::Else) ||
                 tokens[ti-1].typ == OpType::Keyword(KeywordType::End){
-                writeln!(writer, "addr_{ti}:")?;
+                    writeln!(writer, "addr_{ti}:")?;
+                }
             }
 
             if ti + 1 < tokens.len() && tokens[ti+1].typ == OpType::Keyword(KeywordType::End) {
@@ -496,7 +497,7 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    mov qword [rbp], rbx")?;
                         writeln!(writer, "    add rbp, 8")?;
-                        functions.push(Function { loc: token.loc.clone(), name: token.text.clone() });
+                        functions.push(Function { loc: token.loc.clone(), name: token.text.clone(), exter: false});
                         ti += 1;
                     },
                     KeywordType::FunctionDone => {
@@ -509,7 +510,9 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                     KeywordType::FunctionThen => ti += 1,
                     KeywordType::Function |
                     KeywordType::Include |
+                    KeywordType::FunctionDefInline |
                     KeywordType::Constant => unreachable!(),
+                    KeywordType::Inline => todo!(),
                 }
             }
         }

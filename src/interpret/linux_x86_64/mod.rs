@@ -362,6 +362,7 @@ pub fn run(ops: &[crate::constants::Operator]) -> Result<i32>{
                     KeywordType::While | //* exept this one, this one should just skip over
                     KeywordType::Memory |
                     KeywordType::FunctionDef |
+                    KeywordType::FunctionDefInline |
                     KeywordType::ConstantDef => {
                         //? Disabled since we now pre run the whole program
                         // constants.insert(op.text.clone(), Constant { loc: op.loc.clone(), name: op.text.clone(), value_i: Some(op.value), value_s: None, used: false });
@@ -378,6 +379,7 @@ pub fn run(ops: &[crate::constants::Operator]) -> Result<i32>{
                     KeywordType::FunctionThen  => ip += 1,
                     KeywordType::Constant |
                     KeywordType::Function |
+                    KeywordType::Inline |
                     KeywordType::Include => unreachable!(),
                 }
             }
@@ -407,7 +409,8 @@ pub fn pre_run(ops: &[Operator]) -> Defineds {
             OpType::Keyword(KeywordType::Memory) => {
                 defineds.memories.insert(op.addr.unwrap(), Memory { size: op.value, loc: op.loc.clone(), id: op.addr.unwrap() });
             },
-            OpType::Keyword(KeywordType::FunctionDef) => {
+            OpType::Keyword(KeywordType::FunctionDefInline) |
+                OpType::Keyword(KeywordType::FunctionDef) => {
                 defineds.functions.insert(op.text.clone(), Function { loc: op.loc.clone(), name: op.text.clone(), id: ip });
             },
             OpType::Keyword(KeywordType::ConstantDef) => {
