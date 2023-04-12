@@ -5,9 +5,9 @@
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @arg fd: Int - file descriptor
 // @ret Int
-fn write with int ptr int returns int do
+fn write with int ptr int returns int then
     SYS_write syscall3
-end
+done
 
 // Write to a file descriptor using the SYS_write syscall
 // args: [buff_size, buff_ptr, fd]
@@ -15,9 +15,9 @@ end
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @arg fd: Int - file descriptor
 // @ret Int
-fn read with int ptr int returns int do
+fn read with int ptr int returns int then
     SYS_read syscall3
-end
+done
 
 
 // Print a string to STDOUT
@@ -25,18 +25,18 @@ end
 // @arg buff_size: Int - number of bytes to write
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @ret NULL
-fn puts with int ptr returns null do
+fn puts with int ptr returns void then
     STDOUT write drop
-end
+done
 
 // Print a string to STDERR
 // args: [str_size, str_ptr]
 // @arg buff_size: Int - number of bytes to write
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @ret NULL
-fn eputs with int ptr returns null do
+fn eputs with int ptr returns void then
     STDOUT write drop
-end
+done
 
 // TODO: make putc and eputc after we make local mem
 
@@ -44,7 +44,7 @@ end
 // args: [exit_code]
 // @arg exit_code: Int
 // @ret NULL/NEVER
-fn exit with int returns null do
+fn exit with int returns void then
     SYS_exit syscall1 drop
-end
+done
 

@@ -1,5 +1,5 @@
 include "std.mcl"
 
-fn main with void returns void do
-    69 putd
-end
+fn main with void returns void then
+    "hi\n" puts
+done

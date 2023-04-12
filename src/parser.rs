@@ -9,14 +9,14 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
 
     for ip in 0..program.len() {
         let op = &program.clone()[ip];
+        // println!("{op:?}");
         match op.typ {
-            OpType::Keyword(KeywordType::If) | 
-            OpType::Keyword(KeywordType::Function) | 
-            OpType::Keyword(KeywordType::While) => {
+            // OpType::Keyword(KeywordType::FunctionDef) |
+            OpType::Keyword(KeywordType::If | KeywordType::While) => {
                 stack.push(ip);
             }
             OpType::Keyword(KeywordType::Else) => {
-                let if_ip = if let Some(x) = stack.pop() { x } else {
+                let Some(if_ip) = stack.pop() else {
                     lerror!(&op.loc, "Unclosed-if else block");
                     return Err(eyre!("Cross referencing"));
                 };
@@ -29,14 +29,13 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                 stack.push(ip);
             },
             OpType::Keyword(KeywordType::End) => {
-                let block_ip = if let Some(block_ip) = stack.pop() { block_ip } else {
+                let Some(block_ip) = stack.pop() else {
                     lerror!(&op.loc, "Unclosed if, if-else, while-do, function, memory, or constant");
                     return Err(eyre!("Cross referencing"));
                 };
 
                 match &program[block_ip].typ {
-                    OpType::Keyword(KeywordType::If) |
-                    OpType::Keyword(KeywordType::Else) => {
+                    OpType::Keyword(KeywordType::If | KeywordType::Else) => {
                         program[block_ip].jmp = ip;
                         program[ip].jmp = ip + 1;
                     }
@@ -45,12 +44,10 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
                         program[ip].jmp = program[block_ip].jmp;
                         program[block_ip].jmp = ip + 1;
                     }
-                    OpType::Keyword(KeywordType::FunctionDo) => {
+                    OpType::Keyword(KeywordType::FunctionThen) => {
                         program[ip].typ = OpType::Instruction(InstructionType::Return);
                     }
-                    OpType::Keyword(KeywordType::Memory) |
-                    OpType::Keyword(KeywordType::Function) |
-                    OpType::Keyword(KeywordType::Constant) => (),
+                    OpType::Keyword(KeywordType::Memory | KeywordType::Constant) => (),
 
                     a => {
                         println!("{a:?}");
@@ -61,14 +58,10 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
 
             }
             OpType::Keyword(KeywordType::Do) => {
-                let block_ip = if let Some(x) = stack.pop() { x } else {
+                let Some(block_ip) = stack.pop() else {
                     lerror!(&op.loc, "Unclosed while-do block");
                     return Err(eyre!("Cross referencing"));
                 };
-
-                if program[block_ip].typ == OpType::Keyword(KeywordType::Function) {
-                    program[ip].typ = OpType::Keyword(KeywordType::FunctionDo);
-                }
 
                 program[ip].jmp = block_ip;
                 stack.push(ip);
@@ -78,7 +71,7 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
 
     }
     if !stack.is_empty() {
-        println!("{:?}", stack);
+        // println!("{:?}", stack);
         lerror!(&program[stack.pop().expect("Empy stack")].clone().loc,"Unclosed block, {:?}", program[stack.pop().expect("Empy stack")].clone());
         return Err(eyre!("Unclosed block"));
     }
@@ -86,18 +79,27 @@ pub fn cross_ref(mut program: Vec<Operator>) -> Result<Vec<Operator>> {
     Ok(program.clone())
 }
 
-pub struct Parser {
-    tokens: Vec<Token>
+pub struct Parser<'a> {
+    tokens: Vec<Token>,
+    pub preprocessor: Preprocessor<'a>,
+    #[allow(dead_code)]
+    args: &'a Args
 }
 
-impl Parser {
-    pub fn new(file: Vec<Token>) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(file: Vec<Token>, args: &'a Args, p: Option<Preprocessor<'a>>) -> Self {
+        let pre = if let Some(p) = p {p} else {
+            Preprocessor::new(Vec::new(), args)
+        };
+
         Self{
-            tokens: file
+            tokens: file,
+            preprocessor: pre,
+            args
         }
     }
 
-    pub fn parse(&mut self, args: &Args) -> Result<Vec<Operator>> {
+    pub fn parse(&mut self) -> Result<Vec<Operator>> {
         let mut tokens = Vec::new();
 
         for token in &self.tokens {
@@ -134,9 +136,9 @@ impl Parser {
 
 
         }
-
-        let t = Preprocessor::new(tokens.clone(), args).preprocess()?.get_ops();
-        let t = cross_ref(t.clone())?;
+        self.preprocessor.program = tokens;
+        let t = self.preprocessor.preprocess()?.get_ops();
+        let t = cross_ref(t)?;
 
         Ok(t)
     }
@@ -145,12 +147,12 @@ impl Parser {
 
 pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
     let n = s.parse::<usize>();
-    if let Ok(_) = n {
+    if n.is_ok() {
         return OpType::Instruction(InstructionType::PushInt);
     }
     match s {
         //stack
-        "print" => OpType::Instruction(InstructionType::Print),
+        "_dbg_print" => OpType::Instruction(InstructionType::Print),
         "dup" => OpType::Instruction(InstructionType::Dup),
         "drop" => OpType::Instruction(InstructionType::Drop),
         "rot" => OpType::Instruction(InstructionType::Rot),
@@ -204,6 +206,8 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "memory" => OpType::Keyword(KeywordType::Memory),
         "const" => OpType::Keyword(KeywordType::Constant),
         "fn" => OpType::Keyword(KeywordType::Function),
+        "then" => OpType::Keyword(KeywordType::FunctionThen),
+        "done" => OpType::Keyword(KeywordType::FunctionDone),
         "return" => OpType::Instruction(InstructionType::Return),
         "returns" => OpType::Instruction(InstructionType::Returns),
         "bool" => OpType::Instruction(InstructionType::TypeBool),

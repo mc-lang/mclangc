@@ -71,7 +71,7 @@ pub enum InstructionType {
     None // Used for macros and any other non built in word definitions
 
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KeywordType {
     If,
     Else,
@@ -81,8 +81,11 @@ pub enum KeywordType {
     Include,
     Memory,
     Constant,
+    ConstantDef,
     Function,
-    FunctionDo
+    FunctionDef,
+    FunctionThen,
+    FunctionDone
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -129,7 +132,7 @@ impl OpType {
 
                     InstructionType::PushInt => "Number",
                     InstructionType::PushStr => "String",
-                    InstructionType::Print => "print",
+                    InstructionType::Print => "_dbg_print",
                     InstructionType::Dup => "dup",
                     InstructionType::Drop => "drop",
                     InstructionType::Rot => "rot",
@@ -192,7 +195,10 @@ impl OpType {
                     KeywordType::Memory => "memory",
                     KeywordType::Function => "fn",
                     KeywordType::Constant => "const",
-                    KeywordType::FunctionDo => "do",
+                    KeywordType::FunctionThen => "then",
+                    KeywordType::FunctionDone => "done",
+                    KeywordType::ConstantDef => "constant Definition (internal)",
+                    KeywordType::FunctionDef => "function definition (internal)"
                 }
             }
             

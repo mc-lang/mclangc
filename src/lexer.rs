@@ -1,6 +1,5 @@
 
 use crate::{constants::{Token, TokenType}, Args};
-use color_eyre::Result;
 
 fn lex_word(s: String, tok_type: TokenType) -> (TokenType, String) {
     match s {
@@ -89,7 +88,7 @@ fn lex_line(text: &str) -> Vec<(usize, String, TokenType)> {
     tokens
 }
 
-pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, _args: &Args) -> Result<Vec<Token>> {
+pub fn lex(code: &str, file: &str, _args: &Args) -> Vec<Token> {
     let lines: Vec<(usize, &str)> = code
         .split(['\n', '\r'])
         .enumerate()
@@ -104,7 +103,7 @@ pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, _args: &Arg
         for (col, tok, tok_type) in lt {
             let (tok_type, tok) = lex_word(tok, tok_type);
             let t = Token{
-                file: file.into(),
+                file: file.to_string(),
                 line: row + 1,
                 col,
                 text: tok,
@@ -123,5 +122,5 @@ pub fn lex<S: Into<String> + std::marker::Copy>(code: &str, file: S, _args: &Arg
     // }
     
 
-    Ok(tokens)
+    tokens
 }

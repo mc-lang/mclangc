@@ -1,13 +1,14 @@
-use std::{fs, path::PathBuf, io::{Write, BufWriter}};
+use std::{fs, path::PathBuf, io::{Write, BufWriter}, collections::HashMap};
 use crate::{constants::{Operator, OpType, KeywordType}, Args};
 use color_eyre::Result;
 use crate::compile::commands::linux_x86_64_compile_and_link;
 use crate::constants::InstructionType;
-use super::commands::linux_x86_64_run;
+use super::{commands::linux_x86_64_run, Constant, Memory, Function};
+use eyre::eyre;
 
 
 pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
-    let debug = args.optimisation == "D";
+    let debug = args.get_opt_level()? < 1;
 
     let mut of_c = PathBuf::from(&args.out_file);
     let (mut of_o, mut of_a) = if args.out_file == *crate::DEFAULT_OUT_FILE {
@@ -24,19 +25,19 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     of_o.set_extension("o");
     of_a.set_extension("nasm");
 
-    
 
     let file = fs::File::create(&of_a)?;
     let mut writer = BufWriter::new(&file);
-    let mut memories:  Vec<(usize, usize)> = Vec::new();
-    let mut constants:  Vec<(String, Option<usize>, Option<String>)> = Vec::new();
+    let mut memories:  Vec<Memory> = Vec::new();
+    let mut constants:  HashMap<String, Constant> = HashMap::new();
+    let mut functions: Vec<Function> = Vec::new();
     // println!("{}", tokens.len());
     let mut strings: Vec<String> = Vec::new();
-
+    
     writeln!(writer, "BITS 64")?;
     writeln!(writer, "segment .text")?;
 
-    writeln!(writer, "print:")?;
+    writeln!(writer, "_dbg_print:")?;
     writeln!(writer, "    mov     r9, -3689348814741910323")?;
     writeln!(writer, "    sub     rsp, 40")?;
     writeln!(writer, "    mov     BYTE [rsp+31], 10")?;
@@ -73,7 +74,7 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     writeln!(writer, "global _start")?;
     writeln!(writer, "_start:")?; 
     writeln!(writer, "    lea rbp, [rel ret_stack]")?;
-    writeln!(writer, "    call func_main")?;
+    writeln!(writer, "    call main")?;
     writeln!(writer, "    jmp end")?;
 
 
@@ -85,36 +86,30 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
             writeln!(writer, "addr_{ti}:")?;
             if token.typ == OpType::Instruction(InstructionType::PushInt) {
                 writeln!(writer, "    ;; -- {:?} {}", token.typ, token.value)?;
-            } else
-            if token.typ == OpType::Instruction(InstructionType::PushStr) {
-                writeln!(writer, "    ;; -- {:?} {}", token.typ, strings[token.value].escape_debug())?;
+            } else if token.typ == OpType::Instruction(InstructionType::PushStr) {
+                writeln!(writer, "    ;; -- {:?} {}", token.typ, token.text.escape_debug())?;
             } else {
                 writeln!(writer, "    ;; -- {:?}", token.typ)?;
             }
         } else {
-            if ti != 0{
 
-                if &tokens[ti-1].typ == &OpType::Keyword(KeywordType::Else) ||
-                    &tokens[ti-1].typ == &OpType::Keyword(KeywordType::End){
-                    writeln!(writer, "addr_{ti}:")?;
-                }
-                
+            if ti != 0 && tokens[ti-1].typ == OpType::Keyword(KeywordType::Else) ||
+                tokens[ti-1].typ == OpType::Keyword(KeywordType::End){
+                writeln!(writer, "addr_{ti}:")?;
             }
-            if ti + 1 < tokens.len() && &tokens[ti+1].typ == &OpType::Keyword(KeywordType::End) {
+
+            if ti + 1 < tokens.len() && tokens[ti+1].typ == OpType::Keyword(KeywordType::End) {
                 writeln!(writer, "addr_{ti}:")?;
             }
             
-            match &token.typ {
-                OpType::Keyword(keyword) => {
-                    match keyword {
-                        &KeywordType::End |
-                        &KeywordType::While => {
-                            writeln!(writer, "addr_{ti}:")?;
-                        }
-                        _ => ()
+            if let OpType::Keyword(keyword) = &token.typ {
+                match keyword {
+                    &KeywordType::End |
+                    &KeywordType::While => {
+                        writeln!(writer, "addr_{ti}:")?;
                     }
-                }   
-                _ => ()
+                    _ => ()
+                }
             }
 
         }
@@ -142,7 +137,7 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                     },
                     InstructionType::Print => {
                         writeln!(writer, "    pop rdi")?;
-                        writeln!(writer, "    call print")?;
+                        writeln!(writer, "    call _dbg_print")?;
                         ti += 1;
                     },
         
@@ -412,11 +407,11 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::None => {
-                        println!("{:?}", token);
+                        println!("{token:?}");
                         unreachable!()
                     },
                     InstructionType::FnCall => {
-                        writeln!(writer, "    call func_{}", token.text)?;
+                        writeln!(writer, "    call {}", token.text)?;
                         ti += 1;
                     },
                     InstructionType::Return => {
@@ -426,45 +421,28 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         writeln!(writer, "    ret")?;
                         ti += 1;
                     },
-                    InstructionType::CastBool => {
-                        ti += 1;
-                    }
-                    InstructionType::CastPtr => {
-                        ti += 1;
-                    }
-                    InstructionType::CastInt => {
-                        ti += 1;
-                    }
-                    InstructionType::CastVoid => {
-                        ti += 1;
-                    }
-                    InstructionType::TypeBool => {
-                        ti += 1;
-                    }
-                    InstructionType::TypePtr => {
-                        ti += 1;
-                    }
-                    InstructionType::TypeInt => {
-                        ti += 1;
-                    }
-                    InstructionType::TypeVoid => {
-                        ti += 1;
-                    }
-                    InstructionType::TypeStr => {
-                        ti += 1;
-                    }
-                    InstructionType::TypeAny => {
-                        ti += 1;
-                    }
-                    InstructionType::Returns => {
-                        ti += 1;
-                    }
+                    InstructionType::CastBool |
+                    InstructionType::CastPtr |
+                    InstructionType::CastInt |
+                    InstructionType::CastVoid |
+                    InstructionType::TypeBool |
+                    InstructionType::TypePtr |
+                    InstructionType::TypeInt |
+                    InstructionType::TypeVoid |
+                    InstructionType::TypeStr |
+                    InstructionType::TypeAny |
+                    InstructionType::Returns |
                     InstructionType::With => {
                         ti += 1;
                     }
                     InstructionType::ConstUse => {
                         writeln!(writer, "    mov rax, qword [const_{}]", token.text)?;
                         writeln!(writer, "    push rax")?;
+
+                        let mut c = constants.get(&token.text).unwrap().clone();
+                        c.used = true;
+                        constants.remove(&token.text);
+                        constants.insert(token.text.clone(), c);
                         ti += 1;
                     },
                 }
@@ -475,23 +453,18 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                 match keyword {
 
                     // block
-                    KeywordType::If => {
+                    KeywordType::If |
+                    KeywordType::Do => {
                         writeln!(writer, "    pop rax")?;
                         writeln!(writer, "    test rax, rax")?;
                         writeln!(writer, "    jz addr_{}", token.jmp)?;
                         ti += 1;
-                    },
+                    }
                     KeywordType::Else => {
                         writeln!(writer, "    jmp addr_{}", token.jmp)?;
                         ti += 1;
                     },
                     KeywordType::While => {
-                        ti += 1;
-                    }
-                    KeywordType::Do => {
-                        writeln!(writer, "    pop rax")?;
-                        writeln!(writer, "    test rax, rax")?;
-                        writeln!(writer, "    jz addr_{}", token.jmp)?;
                         ti += 1;
                     }
                     KeywordType::End => {
@@ -501,23 +474,42 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     KeywordType::Memory => {
-                        memories.push((token.addr.unwrap(), token.value));
+                        memories.push(Memory { size: token.value, loc: token.loc.clone(), id: token.addr.unwrap() });
                         ti += 1;
                     }
-                    KeywordType::Include => unreachable!(),
-                    KeywordType::Constant => {
+                    KeywordType::ConstantDef => {
                         // TODO: after we add c style strings add supoort for them in constants
-                        constants.push((token.text.clone(), Some(token.value), None));
+                        let a = args.get_opt_level()? < 1;
+                        let c = Constant{
+                            loc: token.loc.clone(),
+                            name: token.text.clone(),
+                            value_i: Some(token.value),
+                            value_s: None,
+                            used: a,
+                        };
+                        
+                        constants.insert(token.text.clone(), c);
                         ti += 1;
                     },
-                    KeywordType::Function => {
-                        writeln!(writer, "func_{}:", token.text)?;
+                    KeywordType::FunctionDef => {
+                        writeln!(writer, "{}:", token.text)?;
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    mov qword [rbp], rbx")?;
                         writeln!(writer, "    add rbp, 8")?;
+                        functions.push(Function { loc: token.loc.clone(), name: token.text.clone() });
                         ti += 1;
                     },
-                    KeywordType::FunctionDo => ti += 1,
+                    KeywordType::FunctionDone => {
+                        writeln!(writer, "    sub rbp, 8")?;
+                        writeln!(writer, "    mov rbx, qword [rbp]")?;
+                        writeln!(writer, "    push rbx")?;
+                        writeln!(writer, "    ret")?;
+                        ti += 1;
+                    }
+                    KeywordType::FunctionThen => ti += 1,
+                    KeywordType::Function |
+                    KeywordType::Include |
+                    KeywordType::Constant => unreachable!(),
                 }
             }
         }
@@ -534,10 +526,14 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
         writeln!(writer, "    str_{}: db {} ; {}", i, s_list, s.escape_default())?;
     }
     
-    for (_, s) in constants.iter().enumerate() {
-        if let Some(v) = &s.1 {
-            writeln!(writer, "    const_{}: dq {}", s.0, v)?;
-        } else if let Some(_v) = &s.2 {
+    for (_, c) in constants {
+        if !c.used {
+            continue;
+        }
+
+        if let Some(v) = &c.value_i {
+            writeln!(writer, "    const_{}: dq {}", c.name, v)?;
+        } else if let Some(_v) = &c.value_s {
             todo!();
         } else {
             unreachable!();
@@ -547,8 +543,8 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     
     
     writeln!(writer, "segment .bss")?;
-    for (_, s) in memories.iter().enumerate() {
-        writeln!(writer, "    mem_{}: resb {}", s.0, s.1)?;
+    for s in memories {
+        writeln!(writer, "    mem_{}: resb {}", s.id, s.size)?;
     }
     writeln!(writer, "    ret_stack: resq 256")?;
     
@@ -557,6 +553,13 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     // }
 
     writer.flush()?;
+
+    
+    pre_compile_steps(
+        String::from_utf8_lossy(writer.buffer()).to_string().as_str(),
+        functions
+    )?;
+
     linux_x86_64_compile_and_link(&of_a, &of_o, &of_c, args.quiet)?;
     if args.run {
         let c = linux_x86_64_run(&of_c, &[], args.quiet)?;
@@ -565,4 +568,23 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
 
 
     Ok(0)
+}
+
+
+fn pre_compile_steps(_code: &str, functions: Vec<Function>) -> Result<()> {
+    let mut has_main = false;
+
+    for func in functions {
+        if func.name == "main" {
+            has_main = true;
+        }
+    }
+
+
+    if !has_main {
+        crate::errors::missing_main_fn();
+        return Err(eyre!(""));
+    }
+    
+    Ok(())
 }

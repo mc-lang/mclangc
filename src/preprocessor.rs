@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::{PathBuf, Path};
 
+
 use color_eyre::Result;
 use eyre::eyre;
 
@@ -13,19 +14,19 @@ use crate::parser::lookup_word;
 
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub loc: Loc,
     pub name: String
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Constant {
     pub loc: Loc,
     pub name: String
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Memory {
     pub loc: Loc,
     pub id: usize
@@ -36,11 +37,12 @@ type Functions = HashMap<String, Function>;
 type Memories = HashMap<String, Memory>;
 type Constants = HashMap<String, Constant>;
 
+#[derive(Debug, Clone)]
 pub struct Preprocessor<'a> {
-    program: Vec<Operator>,
-    functions: Functions,
-    memories: Memories,
-    constants: Constants,
+    pub program: Vec<Operator>,
+    pub functions: Functions,
+    pub memories: Memories,
+    pub constants: Constants,
     args: &'a Args
 }
 
@@ -49,7 +51,7 @@ impl<'a> Preprocessor<'a> {
     pub fn new(prog: Vec<Operator>, args: &'a Args) -> Self {
         Self {
             program: prog,
-            args: args,
+            args,
             functions: HashMap::new(),
             memories: HashMap::new(),
             constants: HashMap::new(),
@@ -88,16 +90,18 @@ impl<'a> Preprocessor<'a> {
                     in_paths.append(&mut crate::DEFAULT_INCLUDES.to_vec().clone().iter().map(|f| (*f).to_string()).collect::<Vec<String>>());
                     
                     let mut include_code = String::new();
-                    
+                    let mut pth = PathBuf::new();
                     if include_path.text.chars().collect::<Vec<char>>()[0] == '.' {
                         let p = Path::new(include_path.loc.0.as_str());
                         let p = p.parent().unwrap();
                         let p = p.join(&include_path.text);
+                        pth = p.clone();
                         include_code = std::fs::read_to_string(p)?;
                     } else {   
                         for path in in_paths {
                             let p = PathBuf::from(path);
                             let p = p.join(&include_path.text);
+                            pth = p.clone();
                             
                             if p.exists() {
                                 include_code = std::fs::read_to_string(p)?;
@@ -110,9 +114,14 @@ impl<'a> Preprocessor<'a> {
                         lerror!(&include_path.loc, "Include file in path '{}' was not found or is empty", include_path.text);
                         return Err(eyre!(""));
                     }
-                    let code = lex(&include_code, &self.args.in_file, &self.args)?;
-                    let mut p = parser::Parser::new(code);
-                    let mut code = p.parse(self.args)?;
+                    let a = pth.to_str().unwrap().to_string();
+                    let code = lex(&include_code, a.as_str(), self.args);
+                    let mut p = parser::Parser::new(code, self.args, Some(self.clone()));
+                    let mut code = p.parse()?;
+
+                    self.set_constants(p.preprocessor.get_constants());
+                    self.set_functions(p.preprocessor.get_functions());
+                    self.set_memories(p.preprocessor.get_memories());
                     code.reverse();
                     rtokens.append(&mut code);
 
@@ -124,9 +133,9 @@ impl<'a> Preprocessor<'a> {
                         return Err(eyre!(""));
                     }
 
-                    let memory_name = rtokens.pop().unwrap();
+                    let name = rtokens.pop().unwrap();
 
-                    self.is_word_available(&memory_name, KeywordType::Function)?;
+                    self.is_word_available(&name, KeywordType::Memory)?;
 
                     let mut code: Vec<Operator> = Vec::new();
 
@@ -157,7 +166,7 @@ impl<'a> Preprocessor<'a> {
                     token.addr = Some(self.memories.len());
                     program.push(token.clone());
 
-                    self.memories.insert(memory_name.text, Memory { loc: token.loc, id: self.memories.len() });
+                    self.memories.insert(name.text, Memory { loc: token.loc, id: self.memories.len() });
 
                 }
                 _ if op_type == OpType::Keyword(KeywordType::Function) => {
@@ -166,47 +175,115 @@ impl<'a> Preprocessor<'a> {
                         return Err(eyre!(""));
                     }
 
-                    let function_name = rtokens.pop().unwrap();
+                    let mut name = rtokens.pop().unwrap();
 
-                    self.is_word_available(&function_name, KeywordType::Function)?;
+                    if let '0'..='9' = name.text.chars().next().unwrap() {
+                        lerror!(&name.loc, "Function name starts with a number which is not allowed");
+                        return Err(eyre!(""));
+                    }
+
+                    // let mut should_warn = false;
+                    for c in name.text.clone().chars() {
+                        match c {
+                            'a'..='z' |
+                            'A'..='Z' |
+                            '0'..='9' |
+                            '-' | '_' => (),
+                            '(' | ')' => {
+                                name.text = name.text.clone().replace('(', "__OP_PAREN__").replace(')', "__CL_PAREN__");
+                            }
+                            _ => {
+                                lerror!(&name.loc, "Function name contains '{c}', which is unsupported");
+                                return Err(eyre!(""));
+                            }
+                        }
+                    }
+                    // if should_warn {
+                        //TODO: add -W option in cli args to enable more warnings
+                        //lwarn!(&function_name.loc, "Function name contains '(' or ')', this character is not supported but will be replaced with '__OP_PAREN__' or '__CL_PAREN__' respectively ");
+                    // }
+
+                    self.is_word_available(&name, KeywordType::Function)?;
                     
                     
-                    self.functions.insert(function_name.text.clone(), Function{
-                        loc: function_name.loc.clone(),
-                        name: function_name.text.clone(),
+                    self.functions.insert(name.text.clone(), Function{
+                        loc: name.loc.clone(),
+                        name: name.text.clone(),
                     });
-                    token.text = function_name.text;
+
+                    let mut fn_def = token.clone();
+                    fn_def.typ = OpType::Keyword(KeywordType::FunctionDef);
+                    fn_def.text = name.text;
                     // println!("{:?}", token);
-                    program.push(token);
+                    program.push(fn_def);
                 }
                 _ if op_type == OpType::Keyword(KeywordType::Constant) => {
                     if rtokens.is_empty() {
                         lerror!(&token.loc, "Constant name not found, expected {} but found nothing", TokenType::Word.human());
                         return Err(eyre!(""));
                     }
+                    // println!("{token:?}");
 
-                    let const_name = rtokens.pop().unwrap();
+                    let mut name = rtokens.pop().unwrap();
+                    // let mut should_warn = false;
 
-                    self.is_word_available(&const_name, KeywordType::Function)?;
-                    
-                    
-                    self.constants.insert(const_name.text.clone(), Constant{
-                        loc: const_name.loc.clone(),
-                        name: const_name.text.clone(),
-                    });
-                    token.text = const_name.text;
-                    let item = rtokens.pop().unwrap();
-                    if item.tok_typ == TokenType::Int {
-                        token.value = item.value;
+                    if let '0'..='9' = name.text.chars().next().unwrap() {
+                        lerror!(&name.loc, "Constant name starts with a number which is not allowed");
+                        return Err(eyre!(""));
                     }
 
-                    if let None = rtokens.pop() {
+                    for c in name.text.clone().chars() {
+                        match c {
+                            'a'..='z' |
+                            'A'..='Z' |
+                            '0'..='9' |
+                            '-' | '_' => (),
+                            '(' | ')' => {
+                                // should_warn = true;
+                                name.text = name.text.clone().replace('(', "__OP_PAREN__").replace(')', "__CL_PAREN__");
+                            }
+                            _ => {
+                                lerror!(&name.loc, "Constant name contains '{c}', which is unsupported");
+                                return Err(eyre!(""));
+                            }
+                        }
+                    }
+                    // if should_warn {
+                        //TODO: add -W option in cli args to enable more warnings
+                        //lwarn!(&name.loc, "Constant name contains '(' or ')', this character is not supported but will be replaced with '__OP_PAREN__' or '__CL_PAREN__' respectively ");
+                    // }
+                    
+                    self.is_word_available(&name, KeywordType::Constant)?;
+                    
+                    
+                    self.constants.insert(name.text.clone(), Constant{
+                        loc: name.loc.clone(),
+                        name: name.text.clone(),
+                    });
+
+                    // println!("{:?}", self.constants);
+
+                    let mut const_def = token.clone();
+                    const_def.typ = OpType::Keyword(KeywordType::ConstantDef);
+                    const_def.text = name.text;
+
+                    let item = rtokens.pop().unwrap();
+                    if item.tok_typ == TokenType::Int {
+                        const_def.value = item.value;
+                    } else {
+                        lerror!(&token.loc, "For now only {:?} is allowed in constants", TokenType::Int);
+                        return Err(eyre!(""));
+                    }
+
+                    let posibly_end = rtokens.pop();
+                    // println!("end: {posibly_end:?}");
+                    if posibly_end.is_none() || posibly_end.unwrap().typ != OpType::Keyword(KeywordType::End) {
                         lerror!(&token.loc, "Constant was not closed with an 'end' instruction, expected 'end' but found nothing");
                         return Err(eyre!(""));
                     }
                     // token.value = 
 
-                    program.push(token);
+                    program.push(const_def);
                 }  
 
                 _ => {
@@ -216,14 +293,18 @@ impl<'a> Preprocessor<'a> {
             }
         }
         self.program = program;
-        
         // println!("has do tokens: {:?}", self.program.iter().map(|t| if t.typ == OpType::Keyword(KeywordType::Do) {Some(t)} else {None} ).collect::<Vec<Option<&Operator>>>());
         //* Feel free to fix this horrifying shit
         //* i wanna kms
         let mut times = 0;
         // dbg!(program.clone());
         while self.program.iter().map(|f| {
-            if f.tok_typ == TokenType::Word && f.typ != OpType::Instruction(InstructionType::FnCall) && f.typ != OpType::Instruction(InstructionType::MemUse)  && f.typ != OpType::Keyword(KeywordType::Function) && f.typ != OpType::Keyword(KeywordType::Constant) && f.typ != OpType::Instruction(InstructionType::ConstUse) {
+            if f.tok_typ == TokenType::Word && 
+                f.typ != OpType::Instruction(InstructionType::FnCall) && 
+                f.typ != OpType::Instruction(InstructionType::MemUse) &&
+                f.typ != OpType::Keyword(KeywordType::FunctionDef) &&
+                f.typ != OpType::Keyword(KeywordType::ConstantDef) &&
+                f.typ != OpType::Instruction(InstructionType::ConstUse) {
                 lookup_word(&f.text, &f.loc)
             } else {
                 OpType::Instruction(InstructionType::PushInt) // i hate myself, this is a randomly picked optype so its happy and works
@@ -238,7 +319,6 @@ impl<'a> Preprocessor<'a> {
             self.expand()?;
             times += 1;
         }
-        
         Ok(self)
     }
 
@@ -251,7 +331,7 @@ impl<'a> Preprocessor<'a> {
         while !rtokens.is_empty() {
             let op = rtokens.pop().unwrap();
             let op_type = op.typ.clone();
-            if op.tok_typ.clone() == TokenType::Word {
+            if op.tok_typ == TokenType::Word {
                 match op_type {
                     OpType::Instruction(InstructionType::None) => {
                         let m = self.functions.get(&op.text);
@@ -299,7 +379,7 @@ impl<'a> Preprocessor<'a> {
 
         self.program = program;
         // println!("{:#?}", self.program);
-        println!("{:?}", self.program.last().unwrap());
+        // println!("{:?}", self.program.last().unwrap());
         Ok(())
     }
 
@@ -318,47 +398,78 @@ impl<'a> Preprocessor<'a> {
         }
         
         if word.tok_typ != TokenType::Word {
-            lerror!(&word.loc, "Bad Function name, expected {} but found {}", TokenType::Word.human(), word.typ.human());
+            lerror!(&word.loc, "Bad {typ:?}, expected {} but found {}", TokenType::Word.human(), word.typ.human());
+            if crate::DEV_MODE {println!("{word:?}")}
+            return Err(eyre!(""));
+        }
+
+        let w = lookup_word(&word.text, &word.loc);
+        if w != OpType::Instruction(InstructionType::None) {
+            lerror!(&word.loc, "Bad {typ:?}, {typ:?} definition cannot be builtin word, got {:?}", word.text);
+            if crate::DEV_MODE {println!("{word:?}")}
             return Err(eyre!(""));
         }
 
         let m = self.memories.get(&word.text);
         if let Some(m) = m {
-            if typ != KeywordType::Memory {
-                lerror!(&word.loc, "{typ:?} cannot replace memory, got {}", word.text);
-                linfo!(&m.loc, "first definition here"); 
-                return Err(eyre!(""));
-            } else {
+            if typ == KeywordType::Memory {
                 lerror!(&word.loc, "Memories cannot be redefined, got {}", word.text);
                 linfo!(&m.loc, "first definition here"); 
+                if crate::DEV_MODE {println!("{word:?}")}
                 return Err(eyre!(""));
             }
+            lerror!(&word.loc, "{typ:?} cannot replace memory, got {}", word.text);
+            linfo!(&m.loc, "first definition here"); 
+            if crate::DEV_MODE {println!("{word:?}")}
+            return Err(eyre!(""));
         }
         let f = self.functions.get(&word.text);
         if let Some(f) = f {
-            if typ != KeywordType::Function {
-                lerror!(&word.loc, "{typ:?} cannot replace function, got {}", word.text);
-                linfo!(&f.loc, "first definition here"); 
-                return Err(eyre!(""));
-            } else {
+            if typ == KeywordType::Function {
                 lerror!(&word.loc, "Functions cannot be redefined, got {}", word.text);
                 linfo!(&f.loc, "first definition here"); 
+                if crate::DEV_MODE {println!("{word:?}")}
                 return Err(eyre!(""));
             }
+            lerror!(&word.loc, "{typ:?} cannot replace function, got {}", word.text);
+            linfo!(&f.loc, "first definition here"); 
+            if crate::DEV_MODE {println!("{word:?}")}
+            return Err(eyre!(""));
         }
         let c = self.constants.get(&word.text);
         if let Some(c) = c {
-            if typ != KeywordType::Constant {
-                lerror!(&word.loc, "{typ:?} cannot replace constant, got {}", word.text);
-                linfo!(&c.loc, "first definition here"); 
-                return Err(eyre!(""));
-            } else {
+            if typ == KeywordType::Constant {
                 lerror!(&word.loc, "Constants cannot be redefined, got {}", word.text);
                 linfo!(&c.loc, "first definition here"); 
+                if crate::DEV_MODE {println!("{word:?}")}
                 return Err(eyre!(""));
             }
+            lerror!(&word.loc, "{typ:?} cannot replace constant, got {}", word.text);
+            linfo!(&c.loc, "first definition here"); 
+            if crate::DEV_MODE {println!("{word:?}")}
+            return Err(eyre!(""));
         }
 
         Ok(true)
+    }
+
+    pub fn set_functions(&mut self, f: Functions) {
+        self.functions = f;
+    }
+    pub fn set_constants(&mut self, f: Constants) {
+        self.constants = f;
+    }
+    pub fn set_memories(&mut self, f: Memories) {
+        self.memories = f;
+    }
+
+    pub fn get_functions(&mut self) -> Functions {
+        self.functions.clone()
+    }
+    pub fn get_constants(&mut self) -> Constants {
+        self.constants.clone()
+    }
+    pub fn get_memories(&mut self) -> Memories{
+        self.memories.clone()
     }
 }

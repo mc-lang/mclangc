@@ -135,7 +135,7 @@ pub fn precompile(tokens: &Vec<Operator>) -> Result<Vec<usize>>{
                     }
                 }
             }
-            _ => {
+            OpType::Keyword(_) => {
                 lerror!(&token.loc, "Unsupported precompiler keyword {:?}", token.typ);
                 dbg!(tokens);
                 return Err(eyre!(""));

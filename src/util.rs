@@ -66,6 +66,21 @@ pub mod logger {
     pub fn lnote<P: Deref<Target = Loc>>(loc: P, msg: &str) {
         println!("{f}:{r}:{c} {blue}note{rs}: {msg}", blue=color::FG_BLUE, rs=color::RESET, f=loc.0, r=loc.1, c=loc.2);
     }
+
+    pub fn help(msg: &str) {
+        println!("{blue}help{r}: {msg}", blue=color::FG_CYAN, r=color::RESET);
+    }
+
+    pub fn code_block(code: &str) -> String {
+        let mut ret = String::new();
+        let lines = code.lines();
+
+        for (i, line) in lines.enumerate() {
+            use std::fmt::Write;
+            writeln!(ret, "{}{} | {}{}",color::FG_BLUE, i + 1, line, color::RESET).unwrap();
+        }
+        ret
+    }
     pub mod macros {
         #[macro_export] macro_rules! error { ($($arg:tt)*) => { $crate::util::logger::error(std::format_args!($($arg)*).to_string().as_str()) }; }
         #[macro_export] macro_rules! warn { ($($arg:tt)*) => {  $crate::util::logger::warn( std::format_args!($($arg)*).to_string().as_str()) }; }
@@ -76,6 +91,9 @@ pub mod logger {
         #[macro_export] macro_rules! lwarn { ($dst:expr, $($arg:tt)*) => {  $crate::util::logger::lwarn($dst, std::format_args!($($arg)*).to_string().as_str()) }; }
         #[macro_export] macro_rules! linfo { ($dst:expr, $($arg:tt)*) => {  $crate::util::logger::linfo($dst, std::format_args!($($arg)*).to_string().as_str()) }; }
         #[macro_export] macro_rules! lnote { ($dst:expr, $($arg:tt)*) => {  $crate::util::logger::lnote($dst, std::format_args!($($arg)*).to_string().as_str()) }; }
+
+        #[macro_export] macro_rules! help { ($($arg:tt)*) => {  $crate::util::logger::help( std::format_args!($($arg)*).to_string().as_str()) }; }
+        #[macro_export] macro_rules! code_block { ($($arg:tt)*) => {  $crate::util::logger::code_block( std::format_args!($($arg)*).to_string().as_str()) }; }
     }
 
 }
