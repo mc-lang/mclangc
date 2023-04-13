@@ -6,10 +6,10 @@ This is the second revision of [MCLang](https://github.com/mc-lang/mclang) now w
 
 ✅ - relatevely usable by normal programmers  
 ✅ - speed comparable to unoptimised C (sometimes)  
-❌ - static typing  
+✅ - static typing  
 ❌ - self hosted (maybe better if not? Since rust is fast asf)  
 ❌ - multiplatform (~~windows~~, linux and mac)  
-❌ - interop with other languages  
+✅ - interop with other languages  
 ❌ - package manager  
 ❌ - installer  
 
