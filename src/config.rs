@@ -1,7 +1,7 @@
 /**
  * Prints out extra information
  */
-pub const DEV_MODE: bool = true;
+pub const DEV_MODE: bool = false;
 
 pub const DEFAULT_OUT_FILE: &str = "a.out";
 pub const DEFAULT_INCLUDES: [&str;1] = [
@@ -18,3 +18,9 @@ pub const DEFAULT_INCLUDES: [&str;1] = [
  */
 pub const MEM_SZ: usize = 640 * 1000; // 4kb
 pub const STRING_SZ: usize = 640 * 1000; // 4kb
+
+
+/**
+ * Experimental options
+ */
+pub const ENABLE_EXPORTED_FUNCTIONS: bool = false;

@@ -58,7 +58,7 @@ pub enum InstructionType {
     TypePtr,
     TypeInt,
     TypeVoid,
-    TypeStr,
+    // TypeStr,
     TypeAny,
     Returns,
     With,
@@ -84,8 +84,11 @@ pub enum KeywordType {
     ConstantDef,
     Function,
     FunctionDef,
+    FunctionDefExported,
     FunctionThen,
-    FunctionDone
+    FunctionDone,
+    Inline,
+    Export
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,7 +105,8 @@ pub struct Operator{
     pub text: String, //? only used for OpType::PushStr
     pub addr: Option<usize>, //? only used for OpType::PushStr
     pub jmp: usize,
-    pub loc: Loc
+    pub loc: Loc,
+    pub types: (usize, usize)
 }
 
 impl Operator {
@@ -115,12 +119,18 @@ impl Operator {
             text,
             loc: (file, row, col),
             tok_typ,
+            types: (0, 0)
         }
     }
-    pub fn set_addr(mut self, addr: usize) -> Self {
+    pub fn set_addr(&mut self, addr: usize) -> Self {
         self.addr = Some(addr);
-        self
+        (*self).clone()
     }
+
+    // pub fn set_types(&mut self, args: usize, rets: usize) -> Self {
+    //     self.types = (args, rets);
+    //     (*self).clone()
+    // }
 
 }
 
@@ -178,7 +188,6 @@ impl OpType {
                     InstructionType::TypePtr => "ptr",
                     InstructionType::TypeInt => "int",
                     InstructionType::TypeVoid => "void",
-                    InstructionType::TypeStr => "str",
                     InstructionType::Returns => "returns",
                     InstructionType::With => "with",
                     InstructionType::TypeAny => "any",
@@ -198,7 +207,10 @@ impl OpType {
                     KeywordType::FunctionThen => "then",
                     KeywordType::FunctionDone => "done",
                     KeywordType::ConstantDef => "constant Definition (internal)",
-                    KeywordType::FunctionDef => "function definition (internal)"
+                    KeywordType::FunctionDef => "function definition (internal)",
+                    KeywordType::FunctionDefExported => "extern function definition (internal)",
+                    KeywordType::Inline => "inline",
+                    KeywordType::Export => "export",
                 }
             }
             
@@ -255,7 +267,6 @@ pub enum Types {
     Ptr,
     Int,
     Void,
-    Str,
     Any
     // U8,
     // U16,

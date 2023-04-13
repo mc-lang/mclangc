@@ -23,5 +23,6 @@ pub struct Memory {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub loc: Loc,
-    pub name: String
+    pub name: String,
+    pub exter: bool,
 }

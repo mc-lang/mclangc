@@ -112,7 +112,7 @@
 			]
 		},
 		"comments": {
-			"disabled__patterns": [
+			"patterns": [
 				{
 					"name": "constant.other.character-class.regexp",
 					"match": "(?://\\s*)(TODO(O*)|FIXME).*"

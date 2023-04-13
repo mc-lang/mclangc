@@ -1,5 +1,5 @@
 use std::{fs, path::PathBuf, io::{Write, BufWriter}, collections::HashMap};
-use crate::{constants::{Operator, OpType, KeywordType}, Args};
+use crate::{constants::{Operator, OpType, KeywordType}, Args, warn, lerror};
 use color_eyre::Result;
 use crate::compile::commands::linux_x86_64_compile_and_link;
 use crate::constants::InstructionType;
@@ -25,6 +25,7 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     of_o.set_extension("o");
     of_a.set_extension("nasm");
 
+    let mut should_push_ret = false;
 
     let file = fs::File::create(&of_a)?;
     let mut writer = BufWriter::new(&file);
@@ -71,11 +72,14 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
     writeln!(writer, "    add     rsp, 40")?;
     writeln!(writer, "    ret")?;
 
-    writeln!(writer, "global _start")?;
-    writeln!(writer, "_start:")?; 
-    writeln!(writer, "    lea rbp, [rel ret_stack]")?;
-    writeln!(writer, "    call main")?;
-    writeln!(writer, "    jmp end")?;
+    if crate::config::ENABLE_EXPORTED_FUNCTIONS && !args.lib_mode {
+        writeln!(writer, "global _start")?;
+        writeln!(writer, "_start:")?; 
+        writeln!(writer, "    lea rbp, [rel ret_stack]")?;
+        writeln!(writer, "    call main")?;
+        writeln!(writer, "    jmp end")?;
+
+    }
 
 
     let mut ti = 0;
@@ -92,10 +96,11 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                 writeln!(writer, "    ;; -- {:?}", token.typ)?;
             }
         } else {
-
-            if ti != 0 && tokens[ti-1].typ == OpType::Keyword(KeywordType::Else) ||
+            if ti > 0 {
+                if tokens[ti-1].typ == OpType::Keyword(KeywordType::Else) ||
                 tokens[ti-1].typ == OpType::Keyword(KeywordType::End){
-                writeln!(writer, "addr_{ti}:")?;
+                    writeln!(writer, "addr_{ti}:")?;
+                }
             }
 
             if ti + 1 < tokens.len() && tokens[ti+1].typ == OpType::Keyword(KeywordType::End) {
@@ -415,6 +420,12 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         ti += 1;
                     },
                     InstructionType::Return => {
+
+                        if crate::config::ENABLE_EXPORTED_FUNCTIONS && should_push_ret {
+                            writeln!(writer, "    pop rdx")?;
+                            should_push_ret = false;
+                        }
+
                         writeln!(writer, "    sub rbp, 8")?;
                         writeln!(writer, "    mov rbx, qword [rbp]")?;
                         writeln!(writer, "    push rbx")?;
@@ -429,7 +440,6 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                     InstructionType::TypePtr |
                     InstructionType::TypeInt |
                     InstructionType::TypeVoid |
-                    InstructionType::TypeStr |
                     InstructionType::TypeAny |
                     InstructionType::Returns |
                     InstructionType::With => {
@@ -496,10 +506,16 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                         writeln!(writer, "    pop rbx")?;
                         writeln!(writer, "    mov qword [rbp], rbx")?;
                         writeln!(writer, "    add rbp, 8")?;
-                        functions.push(Function { loc: token.loc.clone(), name: token.text.clone() });
+                        functions.push(Function { loc: token.loc.clone(), name: token.text.clone(), exter: false});
                         ti += 1;
                     },
                     KeywordType::FunctionDone => {
+                        
+                        if crate::config::ENABLE_EXPORTED_FUNCTIONS && should_push_ret {
+                            writeln!(writer, "    pop rdx")?;
+                            should_push_ret = false;
+                        }
+
                         writeln!(writer, "    sub rbp, 8")?;
                         writeln!(writer, "    mov rbx, qword [rbp]")?;
                         writeln!(writer, "    push rbx")?;
@@ -509,16 +525,71 @@ pub fn compile(tokens: &[Operator], args: &Args) -> Result<i32>{
                     KeywordType::FunctionThen => ti += 1,
                     KeywordType::Function |
                     KeywordType::Include |
+                    KeywordType::Inline |
+                    KeywordType::Export |
                     KeywordType::Constant => unreachable!(),
+                    KeywordType::FunctionDefExported => {
+
+                        if !crate::config::ENABLE_EXPORTED_FUNCTIONS {
+                            lerror!(&token.loc, "Experimental feature 'exported functions' is not enabled");
+                            return Err(eyre!(""));
+                        }
+
+                        writeln!(writer, "global {}", token.text)?;
+                        writeln!(writer, "{}:", token.text)?;
+                        
+                        writeln!(writer, "    pop rbx")?;
+                        writeln!(writer, "    mov qword [rbp], rbx")?;
+                        writeln!(writer, "    add rbp, 8")?;
+                        warn!("External functions are highly experimental and should be treated as such");
+                        if token.types.0 == 0 {
+                            writeln!(writer, "    ; no arguments")?;
+                        } else {
+                            if token.types.0 >= 1 {
+                                writeln!(writer, "    push rdi")?;
+                            }
+                            if token.types.0 >= 2 {
+                                writeln!(writer, "    push rsi")?;
+                            } 
+                            if token.types.0 >= 3 {
+                                writeln!(writer, "    push rdx")?;
+                            } 
+                            if token.types.0 >= 4 {
+                                writeln!(writer, "    push rcx")?;
+                            }
+                            if token.types.0 >= 5 {
+                                writeln!(writer, "    push r8")?;
+                            }
+                            if token.types.0 >= 6 {
+                                writeln!(writer, "    push r9")?;
+                            }
+                            if token.types.0 >= 7 {
+                                lerror!(&token.loc, "More than 6 arguments in an external function is not supported");
+                                return Err(eyre!(""));
+                            } 
+                        }
+
+                        if token.types.1 == 1 {
+                            should_push_ret = true;
+                        } else if token.types.1 > 1 {
+                            lerror!(&token.loc, "More than 1 return arguments in an external function is not supported");
+                            return Err(eyre!(""));
+                        } 
+                            
+                        functions.push(Function { loc: token.loc.clone(), name: token.text.clone(), exter: false});
+                        ti += 1;
+                    },
                 }
             }
         }
     }
     writeln!(writer, "addr_{ti}:")?;
-    writeln!(writer, "end:")?;
-    writeln!(writer, "    mov rax, 60")?;
-    writeln!(writer, "    mov rdi, 0")?;
-    writeln!(writer, "    syscall")?;
+    if crate::config::ENABLE_EXPORTED_FUNCTIONS && !args.lib_mode {
+        writeln!(writer, "end:")?;
+        writeln!(writer, "    mov rax, 60")?;
+        writeln!(writer, "    mov rdi, 0")?;
+        writeln!(writer, "    syscall")?;
+    }
     writeln!(writer, "segment .data")?;
     for (i, s) in strings.iter().enumerate() {
         let s_chars = s.chars().map(|c| (c as u32).to_string()).collect::<Vec<String>>();

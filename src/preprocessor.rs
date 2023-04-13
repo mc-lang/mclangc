@@ -17,7 +17,9 @@ use crate::parser::lookup_word;
 #[derive(Debug, Clone)]
 pub struct Function {
     pub loc: Loc,
-    pub name: String
+    pub name: String,
+    pub inline: bool,
+    pub tokens: Option<Vec<Operator>>
 }
 
 #[derive(Debug, Clone)]
@@ -62,20 +64,21 @@ impl<'a> Preprocessor<'a> {
     pub fn preprocess(&mut self) -> Result<&mut Preprocessor<'a>>{
         // println!("pre: has do tokens: {:?}", self.program.iter().map(|t| if t.typ == OpType::Keyword(KeywordType::Do) {Some(t)} else {None} ).collect::<Vec<Option<&Operator>>>());
         
+        let mut f_inline = false;
+        let mut f_extern = false;
+
         let mut program: Vec<Operator> = Vec::new();
 
         let mut rtokens = self.program.clone();
         rtokens.reverse();
         while !rtokens.is_empty() {
-            let mut token = rtokens.pop().unwrap();
+            let mut op = rtokens.pop().unwrap();
             // println!("{token:?}");
-            let op_type = token.typ.clone();
-            match token.clone() {
-                
-
-                _ if op_type == OpType::Keyword(KeywordType::Include) => {
+            let op_type = op.typ.clone();
+            match op_type {
+                OpType::Keyword(KeywordType::Include) => {
                     if rtokens.is_empty() {
-                        lerror!(&token.loc, "Include path not found, expected {} but found nothing", TokenType::String.human());
+                        lerror!(&op.loc, "Include path not found, expected {} but found nothing", TokenType::String.human());
                         return Err(eyre!(""));
                     }
 
@@ -127,9 +130,10 @@ impl<'a> Preprocessor<'a> {
 
 
                 }
-                _ if op_type == OpType::Keyword(KeywordType::Memory) => {
+
+                OpType::Keyword(KeywordType::Memory) => {
                     if rtokens.is_empty() {
-                        lerror!(&token.loc, "Memory name not found, expected {} but found nothing", TokenType::String.human());
+                        lerror!(&op.loc, "Memory name not found, expected {} but found nothing", TokenType::String.human());
                         return Err(eyre!(""));
                     }
 
@@ -159,19 +163,20 @@ impl<'a> Preprocessor<'a> {
 
 
                     if res.len() != 1 {
-                        lerror!(&token.loc, "Expected 1 number, got {:?}", res);
+                        lerror!(&op.loc, "Expected 1 number, got {:?}", res);
                         return Err(eyre!(""));
                     }
-                    token.value = res[0];
-                    token.addr = Some(self.memories.len());
-                    program.push(token.clone());
+                    op.value = res[0];
+                    op.addr = Some(self.memories.len());
+                    program.push(op.clone());
 
-                    self.memories.insert(name.text, Memory { loc: token.loc, id: self.memories.len() });
+                    self.memories.insert(name.text, Memory { loc: op.loc, id: self.memories.len() });
 
                 }
-                _ if op_type == OpType::Keyword(KeywordType::Function) => {
+
+                OpType::Keyword(KeywordType::Function) => {
                     if rtokens.is_empty() {
-                        lerror!(&token.loc, "Function name not found, expected {} but found nothing", TokenType::Word.human());
+                        lerror!(&op.loc, "Function name not found, expected {} but found nothing", TokenType::Word.human());
                         return Err(eyre!(""));
                     }
 
@@ -206,20 +211,130 @@ impl<'a> Preprocessor<'a> {
                     self.is_word_available(&name, KeywordType::Function)?;
                     
                     
-                    self.functions.insert(name.text.clone(), Function{
-                        loc: name.loc.clone(),
-                        name: name.text.clone(),
-                    });
+                    if f_inline {
+                        f_inline = false;
+                        let mut prog: Vec<Operator> = Vec::new();
+                        let mut depth = -1;
+                        while !rtokens.is_empty() {
+                            let op = rtokens.pop().unwrap();
 
-                    let mut fn_def = token.clone();
-                    fn_def.typ = OpType::Keyword(KeywordType::FunctionDef);
-                    fn_def.text = name.text;
-                    // println!("{:?}", token);
-                    program.push(fn_def);
+                            match op.typ.clone() {
+                                OpType::Instruction(i) => {
+                                    match i {
+                                        InstructionType::TypeAny |
+                                        InstructionType::TypeBool |
+                                        InstructionType::TypeInt |
+                                        InstructionType::TypePtr |
+                                        InstructionType::With |
+                                        InstructionType::Returns |
+                                        InstructionType::TypeVoid => {
+                                            if depth >= 0 {
+                                                prog.push(op);
+                                            }
+                                        },
+                                        _ => prog.push(op)
+                                    }
+                                }
+                                OpType::Keyword(k) => {
+                                    match k {
+                                        KeywordType::Inline |
+                                        KeywordType::Include => {
+                                            todo!("make error")
+                                        },
+                                        KeywordType::FunctionThen => {
+                                            if depth >= 0 {
+                                                prog.push(op);
+                                            }
+                                            depth += 1;
+                                        },
+                                        KeywordType::FunctionDone => {
+                                            if depth == 0 {
+                                                break;
+                                            }
+
+                                            depth -= 1;
+                                        },
+                                        _ => prog.push(op)
+                                    }
+                                }
+                            }
+                        }
+                        let mut pre = self.clone();
+                        pre.program = prog;
+                        pre.preprocess()?;
+                        prog = pre.get_ops();
+
+                        self.functions.insert(name.text.clone(), Function{
+                            loc: name.loc.clone(),
+                            name: name.text.clone(),
+                            inline: true,
+                            tokens: Some(prog)
+                        });
+                        
+                    } else if f_extern {
+                        f_extern = false;
+                        self.functions.insert(name.text.clone(), Function{
+                            loc: name.loc.clone(),
+                            name: name.text.clone(),
+                            inline: false,
+                            tokens: None
+                        });
+                        let mut a: Vec<Operator> = Vec::new();
+                        let mut fn_def = op.clone();
+                        a.push(rtokens.pop().unwrap());
+                        let mut ret = false;
+                        while !rtokens.is_empty() {
+                            let op = rtokens.pop().unwrap();
+                            // println!("{:?}",op);
+                            a.push(op.clone());
+                            if op.typ == OpType::Instruction(InstructionType::Returns) {
+                                ret = true;
+                            }
+
+                            if op.typ == OpType::Keyword(KeywordType::FunctionThen) {
+                                break;
+                            }
+
+                            if op.typ == OpType::Instruction(InstructionType::TypeBool) ||
+                                op.typ == OpType::Instruction(InstructionType::TypeInt) ||
+                                op.typ == OpType::Instruction(InstructionType::TypePtr) {
+
+                                if ret {
+                                    fn_def.types.1 += 1;
+                                } else {
+                                    fn_def.types.0 += 1;
+                                }
+                            }
+                        }
+
+                        fn_def.typ = OpType::Keyword(KeywordType::FunctionDefExported);
+                        fn_def.text = name.text;
+                        // fn_def.set_types(args, rets);
+                        // println!("{:?}", fn_def.types);
+                        program.push(fn_def);
+                        program.append(&mut a);
+
+
+                    } else {
+
+                        self.functions.insert(name.text.clone(), Function{
+                            loc: name.loc.clone(),
+                            name: name.text.clone(),
+                            inline: false,
+                            tokens: None
+                        });
+                        
+                        let mut fn_def = op.clone();
+                        fn_def.typ = OpType::Keyword(KeywordType::FunctionDef);
+                        fn_def.text = name.text;
+                        // println!("{:?}", token);
+                        program.push(fn_def);
+                    }
                 }
-                _ if op_type == OpType::Keyword(KeywordType::Constant) => {
+                
+                OpType::Keyword(KeywordType::Constant) => {
                     if rtokens.is_empty() {
-                        lerror!(&token.loc, "Constant name not found, expected {} but found nothing", TokenType::Word.human());
+                        lerror!(&op.loc, "Constant name not found, expected {} but found nothing", TokenType::Word.human());
                         return Err(eyre!(""));
                     }
                     // println!("{token:?}");
@@ -263,7 +378,7 @@ impl<'a> Preprocessor<'a> {
 
                     // println!("{:?}", self.constants);
 
-                    let mut const_def = token.clone();
+                    let mut const_def = op.clone();
                     const_def.typ = OpType::Keyword(KeywordType::ConstantDef);
                     const_def.text = name.text;
 
@@ -271,14 +386,14 @@ impl<'a> Preprocessor<'a> {
                     if item.tok_typ == TokenType::Int {
                         const_def.value = item.value;
                     } else {
-                        lerror!(&token.loc, "For now only {:?} is allowed in constants", TokenType::Int);
+                        lerror!(&op.loc, "For now only {:?} is allowed in constants", TokenType::Int);
                         return Err(eyre!(""));
                     }
 
                     let posibly_end = rtokens.pop();
                     // println!("end: {posibly_end:?}");
                     if posibly_end.is_none() || posibly_end.unwrap().typ != OpType::Keyword(KeywordType::End) {
-                        lerror!(&token.loc, "Constant was not closed with an 'end' instruction, expected 'end' but found nothing");
+                        lerror!(&op.loc, "Constant was not closed with an 'end' instruction, expected 'end' but found nothing");
                         return Err(eyre!(""));
                     }
                     // token.value = 
@@ -286,9 +401,32 @@ impl<'a> Preprocessor<'a> {
                     program.push(const_def);
                 }  
 
+                OpType::Keyword(KeywordType::Inline) => {
+                    if f_extern {
+                        lerror!(&op.loc, "Function is already marked as extern, function cannot be inline and extern at the same time");
+                        return Err(eyre!(""));
+                    } else if f_inline {
+                        lerror!(&op.loc, "Function is already marked as inline, remove this inline Keyword");
+                        return Err(eyre!(""));
+                    } else {
+                        f_inline = true;
+                    }
+                }
+
+                OpType::Keyword(KeywordType::Export) => {
+                    if f_inline {
+                        lerror!(&op.loc, "Function is already marked as inline, function cannot be inline and extern at the same time");
+                        return Err(eyre!(""));
+                    } else if f_extern {
+                        lerror!(&op.loc, "Function is already marked as extern, remove this extern Keyword");
+                        return Err(eyre!(""));
+                    } else {
+                        f_extern = true;
+                    }
+                }
+
                 _ => {
-                    
-                    program.push(token);
+                    program.push(op);
                 }
             }
         }
@@ -303,6 +441,7 @@ impl<'a> Preprocessor<'a> {
                 f.typ != OpType::Instruction(InstructionType::FnCall) && 
                 f.typ != OpType::Instruction(InstructionType::MemUse) &&
                 f.typ != OpType::Keyword(KeywordType::FunctionDef) &&
+                f.typ != OpType::Keyword(KeywordType::FunctionDefExported) &&
                 f.typ != OpType::Keyword(KeywordType::ConstantDef) &&
                 f.typ != OpType::Instruction(InstructionType::ConstUse) {
                 lookup_word(&f.text, &f.loc)
@@ -334,15 +473,18 @@ impl<'a> Preprocessor<'a> {
             if op.tok_typ == TokenType::Word {
                 match op_type {
                     OpType::Instruction(InstructionType::None) => {
-                        let m = self.functions.get(&op.text);
+                        let m = self.functions.get(&op.text.clone().replace('(', "__OP_PAREN__").replace(')', "__CL_PAREN__"));
                         let mem = self.memories.get(&op.text);
-                        let cons = self.constants.get(&op.text);
+                        let cons = self.constants.get(&op.text.clone().replace('(', "__OP_PAREN__").replace(')', "__CL_PAREN__"));
                         if let Some(m) = m {
-                            // println!("------ FOUND FUNCTION {} -----------", m.name);
-                            let mut t = op.clone();
-                            t.typ = OpType::Instruction(InstructionType::FnCall);
-                            t.text = m.name.clone();
-                            program.push(t.clone());
+                            if m.inline {
+                                program.append(&mut m.tokens.clone().unwrap());
+                            } else {                                
+                                let mut t = op.clone();
+                                t.typ = OpType::Instruction(InstructionType::FnCall);
+                                t.text = m.name.clone();
+                                program.push(t.clone());
+                            }
 
                             // println!("##### {:?}", t);
                         } else if let Some(mem) = mem {
