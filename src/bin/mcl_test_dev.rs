@@ -150,7 +150,7 @@ struct Args {
     input: String,
 
     /// Compiler path
-    #[arg(long, short, default_value_t=String::from("./target/release/mclang"))]
+    #[arg(long, short, default_value_t=String::from("./target/release/mclangc"))]
     compiler_path: String
 
 
