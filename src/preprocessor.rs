@@ -212,6 +212,7 @@ impl<'a> Preprocessor<'a> {
                     
                     
                     if f_inline {
+                        f_inline = false;
                         let mut prog: Vec<Operator> = Vec::new();
                         let mut depth = -1;
                         while !rtokens.is_empty() {
@@ -224,7 +225,6 @@ impl<'a> Preprocessor<'a> {
                                         InstructionType::TypeBool |
                                         InstructionType::TypeInt |
                                         InstructionType::TypePtr |
-                                        InstructionType::TypeStr |
                                         InstructionType::With |
                                         InstructionType::Returns |
                                         InstructionType::TypeVoid => {
@@ -271,7 +271,52 @@ impl<'a> Preprocessor<'a> {
                             tokens: Some(prog)
                         });
                         
+                    } else if f_extern {
+                        f_extern = false;
+                        self.functions.insert(name.text.clone(), Function{
+                            loc: name.loc.clone(),
+                            name: name.text.clone(),
+                            inline: false,
+                            tokens: None
+                        });
+                        let mut a: Vec<Operator> = Vec::new();
+                        let mut fn_def = op.clone();
+                        a.push(rtokens.pop().unwrap());
+                        let mut ret = false;
+                        while !rtokens.is_empty() {
+                            let op = rtokens.pop().unwrap();
+                            // println!("{:?}",op);
+                            a.push(op.clone());
+                            if op.typ == OpType::Instruction(InstructionType::Returns) {
+                                ret = true;
+                            }
+
+                            if op.typ == OpType::Keyword(KeywordType::FunctionThen) {
+                                break;
+                            }
+
+                            if op.typ == OpType::Instruction(InstructionType::TypeBool) ||
+                                op.typ == OpType::Instruction(InstructionType::TypeInt) ||
+                                op.typ == OpType::Instruction(InstructionType::TypePtr) {
+
+                                if ret {
+                                    fn_def.types.1 += 1;
+                                } else {
+                                    fn_def.types.0 += 1;
+                                }
+                            }
+                        }
+
+                        fn_def.typ = OpType::Keyword(KeywordType::FunctionDefExported);
+                        fn_def.text = name.text;
+                        // fn_def.set_types(args, rets);
+                        // println!("{:?}", fn_def.types);
+                        program.push(fn_def);
+                        program.append(&mut a);
+
+
                     } else {
+
                         self.functions.insert(name.text.clone(), Function{
                             loc: name.loc.clone(),
                             name: name.text.clone(),
@@ -357,11 +402,26 @@ impl<'a> Preprocessor<'a> {
                 }  
 
                 OpType::Keyword(KeywordType::Inline) => {
-                    if f_inline {
+                    if f_extern {
+                        lerror!(&op.loc, "Function is already marked as extern, function cannot be inline and extern at the same time");
+                        return Err(eyre!(""));
+                    } else if f_inline {
                         lerror!(&op.loc, "Function is already marked as inline, remove this inline Keyword");
                         return Err(eyre!(""));
                     } else {
                         f_inline = true;
+                    }
+                }
+
+                OpType::Keyword(KeywordType::Export) => {
+                    if f_inline {
+                        lerror!(&op.loc, "Function is already marked as inline, function cannot be inline and extern at the same time");
+                        return Err(eyre!(""));
+                    } else if f_extern {
+                        lerror!(&op.loc, "Function is already marked as extern, remove this extern Keyword");
+                        return Err(eyre!(""));
+                    } else {
+                        f_extern = true;
                     }
                 }
 
@@ -381,6 +441,7 @@ impl<'a> Preprocessor<'a> {
                 f.typ != OpType::Instruction(InstructionType::FnCall) && 
                 f.typ != OpType::Instruction(InstructionType::MemUse) &&
                 f.typ != OpType::Keyword(KeywordType::FunctionDef) &&
+                f.typ != OpType::Keyword(KeywordType::FunctionDefExported) &&
                 f.typ != OpType::Keyword(KeywordType::ConstantDef) &&
                 f.typ != OpType::Instruction(InstructionType::ConstUse) {
                 lookup_word(&f.text, &f.loc)

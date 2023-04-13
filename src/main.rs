@@ -57,6 +57,9 @@ pub struct Args {
     #[arg(long, short='O', default_value_t=String::from("0"))]
     optimisation: String,
 
+    // disables the main function
+    #[arg(long="lib")]
+    lib_mode: bool
     //#[arg(long, short='F')]
     //features: Vec<String>,
 

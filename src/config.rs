@@ -18,3 +18,9 @@ pub const DEFAULT_INCLUDES: [&str;1] = [
  */
 pub const MEM_SZ: usize = 640 * 1000; // 4kb
 pub const STRING_SZ: usize = 640 * 1000; // 4kb
+
+
+/**
+ * Experimental options
+ */
+pub const ENABLE_EXPORTED_FUNCTIONS: bool = false;

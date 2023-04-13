@@ -62,10 +62,10 @@ pub fn typecheck(ops: Vec<Operator>, args: &Args, init_types: Option<Vec<Types>>
                         stack_pop(&mut stack, &op, &[Types::Bool])?;
                     },
 
-                    KeywordType::FunctionDefInline |
+                    KeywordType::FunctionDefExported |
                     KeywordType::FunctionDef => {
                         let name = op.text.clone();
-
+                        // println!("{:?}", name);
                         if let Some(p) = rtokens.pop() {
                             if p.typ != OpType::Instruction(InstructionType::With){
                                 lerror!(&op.loc, "Expected {:?}, got {:?}", OpType::Instruction(InstructionType::With), p.typ);
@@ -106,8 +106,6 @@ pub fn typecheck(ops: Vec<Operator>, args: &Args, init_types: Option<Vec<Types>>
                                             continue;
                                         }
                                         Types::Void
-                                    } else if op.typ == OpType::Instruction(InstructionType::TypeStr) {
-                                        Types::Str
                                     } else if op.typ == OpType::Instruction(InstructionType::TypeAny) {
                                         Types::Any
                                     } else {
@@ -177,8 +175,12 @@ pub fn typecheck(ops: Vec<Operator>, args: &Args, init_types: Option<Vec<Types>>
                     },
                     KeywordType::FunctionThen |
                     KeywordType::FunctionDone |
-                    KeywordType::Function => unreachable!(),
-                    KeywordType::Inline => (),
+                    KeywordType::Inline |
+                    KeywordType::Export |
+                    KeywordType::Function => {
+                        println!("{:?}", op);
+                        unreachable!()
+                    },
                 }
             },
             OpType::Instruction(instruction) => {
@@ -332,7 +334,10 @@ pub fn typecheck(ops: Vec<Operator>, args: &Args, init_types: Option<Vec<Types>>
                     InstructionType::FnCall  => {
                         stack_snapshots.push(stack.clone());
                         
-                        let f = functions.get(&op.text).unwrap().clone();
+                        let f = if let Some(f) = functions.get(&op.text) {f} else {
+                            lerror!(&op.loc, "Could not find function {}", op.text);
+                            return Err(eyre!(""));
+                        };
 
                         // in_function = (op.text.clone(), f.clone(), op.loc.clone());
 
@@ -362,7 +367,6 @@ pub fn typecheck(ops: Vec<Operator>, args: &Args, init_types: Option<Vec<Types>>
                     InstructionType::TypeInt |
                     InstructionType::TypeVoid |
                     InstructionType::TypeAny |
-                    InstructionType::TypeStr |
                     InstructionType::Returns |
                     InstructionType::With => (),
                     InstructionType::ConstUse => {

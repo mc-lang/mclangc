@@ -207,6 +207,7 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "then" => OpType::Keyword(KeywordType::FunctionThen),
         "done" => OpType::Keyword(KeywordType::FunctionDone),
         "inline" => OpType::Keyword(KeywordType::Inline),
+        "export" => OpType::Keyword(KeywordType::Export),
         "return" => OpType::Instruction(InstructionType::Return),
         "returns" => OpType::Instruction(InstructionType::Returns),
         "bool" => OpType::Instruction(InstructionType::TypeBool),
@@ -214,7 +215,6 @@ pub fn lookup_word<P: Deref<Target = Loc>>(s: &str, _pos: P) -> OpType {
         "ptr" => OpType::Instruction(InstructionType::TypePtr),
         "void" => OpType::Instruction(InstructionType::TypeVoid),
         "any" => OpType::Instruction(InstructionType::TypeAny),
-        "str" => OpType::Instruction(InstructionType::TypeStr),
         "with" => OpType::Instruction(InstructionType::With),
         _ => OpType::Instruction(InstructionType::None)
     }

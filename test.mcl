@@ -1,7 +1,12 @@
 // include "std.mcl"
-
-fn main with void returns void then
-    69 test
+fn mcl_print with int ptr returns void then
+    1 1 syscall3 drop
 done
 
-inline fn test with void returns void then _dbg_print done
+fn mcl_dump with int returns void then
+    _dbg_print
+done
+
+fn main with void returns void then
+    "hi\n" mcl_print
+done
