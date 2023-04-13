@@ -2,12 +2,12 @@ const NULL 0 end
 const false 0 end
 const true 1 end
 
-fn div with int int returns int then divmod drop done
-fn mod with int int returns int then divmod swap drop done
+inline fn div with int int returns int then divmod drop done
+inline fn mod with int int returns int then divmod swap drop done
 
 
-fn dup2 with any any returns any any any any then over over done
-fn drop2 with any any returns void then drop drop done
+inline fn dup2 with any any returns any any any any then over over done
+inline fn drop2 with any any returns void then drop drop done
 
 const sizeof(u64) 8 end
 const sizeof(u32) 4 end

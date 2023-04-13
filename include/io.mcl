@@ -5,7 +5,7 @@
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @arg fd: Int - file descriptor
 // @ret Int
-fn write with int ptr int returns int then
+inline fn write with int ptr int returns int then
     SYS_write syscall3
 done
 
@@ -15,7 +15,7 @@ done
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @arg fd: Int - file descriptor
 // @ret Int
-fn read with int ptr int returns int then
+inline fn read with int ptr int returns int then
     SYS_read syscall3
 done
 
@@ -25,7 +25,7 @@ done
 // @arg buff_size: Int - number of bytes to write
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @ret NULL
-fn puts with int ptr returns void then
+inline fn puts with int ptr returns void then
     STDOUT write drop
 done
 
@@ -34,7 +34,7 @@ done
 // @arg buff_size: Int - number of bytes to write
 // @arg buff_ptr: Ptr - pointer to the buffer to write
 // @ret NULL
-fn eputs with int ptr returns void then
+inline fn eputs with int ptr returns void then
     STDOUT write drop
 done
 
@@ -44,7 +44,7 @@ done
 // args: [exit_code]
 // @arg exit_code: Int
 // @ret NULL/NEVER
-fn exit with int returns void then
+inline fn exit with int returns void then
     SYS_exit syscall1 drop
 done
 
