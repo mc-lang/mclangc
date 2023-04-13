@@ -1,5 +1,5 @@
 use std::{fs, path::PathBuf, io::{Write, BufWriter}, collections::HashMap};
-use crate::{constants::{Operator, OpType, KeywordType}, Args, warn, error, lerror};
+use crate::{constants::{Operator, OpType, KeywordType}, Args, warn, lerror};
 use color_eyre::Result;
 use crate::compile::commands::linux_x86_64_compile_and_link;
 use crate::constants::InstructionType;

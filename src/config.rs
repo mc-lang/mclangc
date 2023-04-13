@@ -1,7 +1,7 @@
 /**
  * Prints out extra information
  */
-pub const DEV_MODE: bool = true;
+pub const DEV_MODE: bool = false;
 
 pub const DEFAULT_OUT_FILE: &str = "a.out";
 pub const DEFAULT_INCLUDES: [&str;1] = [
